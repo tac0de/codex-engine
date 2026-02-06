@@ -95,7 +95,7 @@ btn.addEventListener("click", async () => {
     const res = await fetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lang }),
+    body: JSON.stringify({ lang, debug: true }),
     });
 
     if (!res.ok) throw new Error("Request failed");
