@@ -1,9 +1,6 @@
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 405,
-      body: "Method Not Allowed",
-    };
+    return { statusCode: 405, body: "Method Not Allowed" };
   }
 
   try {
@@ -45,11 +42,31 @@ Rules:
     });
 
     const data = await response.json();
-    const text = data.output_text || data.output?.[0]?.content?.[0]?.text || "";
+
+    // 🔴 핵심: 모든 text 조각을 안전하게 합침
+    let text = "";
+
+    if (data.output && Array.isArray(data.output)) {
+      for (const item of data.output) {
+        if (item.content && Array.isArray(item.content)) {
+          for (const c of item.content) {
+            if (c.type === "output_text" && c.text) {
+              text += c.text;
+            }
+          }
+        }
+      }
+    }
+
+    text = text.trim();
+
+    if (!text) {
+      throw new Error("Empty model output");
+    }
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ result: text.trim() }),
+      body: JSON.stringify({ result: text }),
     };
   } catch (err) {
     return {
