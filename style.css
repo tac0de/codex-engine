@@ -74,6 +74,28 @@ button:disabled {
   line-height: 1.55;
 }
 
+#resultText {
+  white-space: pre-wrap;
+}
+
+.result-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.action-btn {
+  width: auto;
+  flex: 1;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  background: #2b2b3a;
+}
+
+.action-btn:hover {
+  background: #3a3a4a;
+}
+
 .foot {
   margin-top: 28px;
   text-align: center;

@@ -68,33 +68,42 @@ function extractText(raw) {
   return text.trim();
 }
 
+function safeParseBody(body) {
+  try {
+    return JSON.parse(body || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function buildResponse(result, debug, debugInfo) {
+  const body = debug
+    ? { result, debug: debugInfo || {} }
+    : { result };
+  return {
+    statusCode: 200,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  };
+}
+
 exports.handler = async (event) => {
-  const fallbackLang = (() => {
-    try {
-      const parsed = JSON.parse(event.body || "{}");
-      return parsed?.lang || "en";
-    } catch {
-      return "en";
-    }
-  })();
-  const fallbackText = pickFallback(fallbackLang);
+  const body = safeParseBody(event.body);
+  const lang = body?.lang || "en";
+  const debug =
+    body?.debug === true ||
+    event?.queryStringParameters?.debug === "1";
+  const fallbackText = pickFallback(lang);
+  const respond = (result, info) => buildResponse(result, debug, info);
 
   try {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      return {
-        statusCode: 200,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ result: fallbackText }),
-      };
-    }
-
-    let lang = "en";
-    try {
-      const parsed = JSON.parse(event.body || "{}");
-      lang = parsed?.lang || "en";
-    } catch {
-      lang = "en";
+      console.error("Missing OPENAI_API_KEY");
+      return respond(fallbackText, {
+        source: "fallback",
+        reason: "missing_api_key",
+      });
     }
 
     const languageMap = {
@@ -104,6 +113,7 @@ exports.handler = async (event) => {
       en: "English",
     };
     const outputLanguage = languageMap[lang] || "English";
+    const model = process.env.OPENAI_MODEL || "gpt-5-nano";
 
     const SYSTEM_PROMPT = `
 You generate ONE short anime-style sentence.
@@ -130,7 +140,7 @@ Now write a new sentence.
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-5-nano",
+        model,
         reasoning: { effort: "low" },
         input: [
           {
@@ -150,26 +160,26 @@ Now write a new sentence.
     const raw = await res.json().catch(() => ({}));
     if (!res.ok) {
       console.error("OpenAI API error", res.status, raw);
-      return {
-        statusCode: 200,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ result: fallbackText }),
-      };
+      return respond(fallbackText, {
+        source: "fallback",
+        reason: "openai_error",
+        status: res.status,
+        error: raw?.error?.message,
+      });
     }
 
     const text = extractText(raw) || fallbackText;
 
-    return {
-      statusCode: 200,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ result: text }),
-    };
+    return respond(text, {
+      source: text === fallbackText ? "fallback" : "openai",
+      model,
+    });
   } catch (err) {
     console.error("Function error", err);
-    return {
-      statusCode: 200,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ result: fallbackText }),
-    };
+    return respond(fallbackText, {
+      source: "fallback",
+      reason: "exception",
+      error: err?.message,
+    });
   }
 };
