@@ -1,14 +1,10 @@
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 405,
-      body: "Method Not Allowed",
-    };
+    return { statusCode: 405, body: "Method Not Allowed" };
   }
 
   try {
-    const body = JSON.parse(event.body || "{}");
-    const lang = body.lang || "en";
+    const { lang = "en" } = JSON.parse(event.body || "{}");
 
     const languageMap = {
       ko: "Korean",
@@ -16,22 +12,26 @@ exports.handler = async (event) => {
       zh: "Chinese",
       en: "English",
     };
-
     const outputLanguage = languageMap[lang] || "English";
 
-    const prompt = `
-Write a short anime-style sentence describing a character ability and its serious drawback.
+    const SYSTEM_PROMPT = `
+You generate ONE short anime-style sentence.
+The sentence must describe:
+- a powerful ability
+- a serious cost or limitation
 
-The sentence should mention:
-- what the ability does
-- what price or limitation it has
+Do not write a story.
+Do not include names.
+Keep it natural and concise.
+`;
 
-Write it naturally in ${outputLanguage}.
+    const USER_PROMPT = `
+Write the sentence in ${outputLanguage}.
 
 Example:
 "Can stop time, but loses a year of life each time the power is used."
 
-Now write a new sentence:
+Now write a new sentence.
 `;
 
     const res = await fetch("https://api.openai.com/v1/responses", {
@@ -42,38 +42,38 @@ Now write a new sentence:
       },
       body: JSON.stringify({
         model: "gpt-5-nano",
-        input: prompt,
-        max_output_tokens: 40,
+        reasoning: { effort: "low" },
+        input: [
+          {
+            role: "system",
+            content: [{ type: "input_text", text: SYSTEM_PROMPT }],
+          },
+          {
+            role: "user",
+            content: [{ type: "input_text", text: USER_PROMPT }],
+          },
+        ],
+        max_output_tokens: 80,
       }),
     });
 
-    const raw = await res.text();
-
-    if (!res.ok) {
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ error: raw }),
-      };
-    }
+    const raw = await res.json();
 
     let text = "";
 
-    const data = JSON.parse(raw);
-    if (Array.isArray(data.output)) {
-      for (const item of data.output) {
-        if (Array.isArray(item.content)) {
-          for (const c of item.content) {
-            if (c.type === "output_text" && c.text) {
-              text += c.text;
-            }
-          }
-        }
+    const output = Array.isArray(raw?.output) ? raw.output : [];
+    for (const item of output) {
+      if (item?.type === "message" && Array.isArray(item.content)) {
+        text = item.content
+          .filter((c) => c.type === "output_text")
+          .map((c) => c.text)
+          .join("");
+        if (text.trim()) break;
       }
     }
 
     if (!text.trim()) {
-      text =
-        "Grants immense power, but each use permanently damages the user's body.";
+      throw new Error("Empty OpenAI output");
     }
 
     return {
