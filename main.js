@@ -54,6 +54,7 @@ const UI_TEXT = {
     desc: "Create unique anime abilities with a twist - every power comes with a cost.",
     btn: "✨ Generate",
     loading: "✨ Generating...",
+    loadingSubtext: "Consulting the anime gods...",
     copy: "📋 Copy",
     share: "🔗 Share",
     favorite: "⭐ Favorite",
@@ -76,6 +77,7 @@ const UI_TEXT = {
     desc: "독특한 애니 능력을 만들어보세요. 모든 능력에는 대가가 따릅니다.",
     btn: "✨ 생성하기",
     loading: "✨ 생성 중...",
+    loadingSubtext: "애니 신들에게 자문 중...",
     copy: "📋 복사",
     share: "🔗 공유",
     favorite: "⭐ 즐겨찾기",
@@ -98,6 +100,7 @@ const UI_TEXT = {
     desc: "ユニークなアニメの能力を作成。すべての能力には代償があります。",
     btn: "✨ 生成する",
     loading: "✨ 生成中...",
+    loadingSubtext: "アニメの神々に相談中...",
     copy: "📋 コピー",
     share: "🔗 共有",
     favorite: "⭐ お気に入り",
@@ -120,6 +123,7 @@ const UI_TEXT = {
     desc: "创造独特的动漫能力——每个能力都有代价。",
     btn: "✨ 生成",
     loading: "✨ 生成中...",
+    loadingSubtext: "向动漫神灵请教中...",
     copy: "📋 复制",
     share: "🔗 分享",
     favorite: "⭐ 收藏",
@@ -387,12 +391,13 @@ btn.addEventListener("click", async () => {
   setTimeout(() => btn.classList.remove("flash-effect"), 600);
 
   const lang = langSelect.value;
-  const loadingLabel = (UI_TEXT[lang] || UI_TEXT.en).loading;
+  const t = UI_TEXT[lang] || UI_TEXT.en;
+  const loadingLabel = t.loading;
 
   // Show loading UI
   loadingContainer.hidden = false;
   loadingText.textContent = loadingLabel;
-  loadingSubtext.textContent = "Consulting the anime gods...";
+  loadingSubtext.textContent = t.loadingSubtext;
   resultText.classList.remove("show");
   resultActions.hidden = true;
 
