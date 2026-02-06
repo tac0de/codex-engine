@@ -149,10 +149,21 @@ function applyLang(lang) {
 
 // Detect browser language
 function detectLanguage() {
-  const browserLang = navigator.language || navigator.languages?.[0] || "en";
-  const langCode = browserLang.split("-")[0];
+  // Try multiple sources for browser language
+  const browserLang = navigator.language || navigator.userLanguage || navigator.languages?.[0] || navigator.browserLanguage || "en";
+
+  // Extract language code (e.g., "ko-KR" -> "ko")
+  const langCode = browserLang.split("-")[0].toLowerCase();
+
+  // Debug log (remove in production if needed)
+  console.log("Detected browser language:", browserLang, "->", langCode);
+
+  // Only set if supported
   if (["en", "ko", "ja", "zh"].includes(langCode)) {
     langSelect.value = langCode;
+    console.log("Set language to:", langCode);
+  } else {
+    console.log("Language not supported, using default: en");
   }
 }
 
@@ -489,3 +500,8 @@ detectLanguage();
 applyLang(langSelect.value);
 renderHistory();
 updateStats();
+
+// Show share button only on devices that support native sharing
+if (!navigator.share) {
+  shareBtn.style.display = 'none';
+}

@@ -21,7 +21,8 @@
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   background: var(--bg-gradient);
   background-attachment: fixed;
   color: var(--text);
@@ -109,7 +110,12 @@ button {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
   transition: left 0.5s ease;
 }
 
@@ -262,7 +268,11 @@ button:disabled {
 
 .history-item.favorite {
   border-color: var(--accent);
-  background: linear-gradient(135deg, rgba(253, 121, 168, 0.1) 0%, var(--panel) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(253, 121, 168, 0.1) 0%,
+    var(--panel) 100%
+  );
 }
 
 .history-text {
@@ -281,6 +291,7 @@ button:disabled {
 .history-action-btn {
   padding: 6px 12px;
   font-size: 0.8rem;
+  color: #fff;
   background: rgba(45, 45, 68, 0.6);
   border: 1px solid var(--border);
   cursor: pointer;
@@ -565,7 +576,8 @@ kbd {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
