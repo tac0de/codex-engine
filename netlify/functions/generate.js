@@ -129,9 +129,21 @@ exports.handler = async (event) => {
   const lang = body?.lang || "en";
   const debug =
     body?.debug === true ||
-    event?.queryStringParameters?.debug === "1";
+    event?.queryStringParameters?.debug === "1" ||
+    process.env.DEBUG_OPENAI === "1";
   const fallbackText = pickFallback(lang);
   const respond = (result, info) => buildResponse(result, debug, info);
+  const requestId =
+    event?.headers?.["x-nf-request-id"] ||
+    event?.headers?.["x-request-id"] ||
+    null;
+
+  console.log("generate:start", {
+    requestId,
+    method: event?.httpMethod,
+    path: event?.path,
+    debug,
+  });
 
   try {
     const apiKey =

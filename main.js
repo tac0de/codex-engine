@@ -60,6 +60,19 @@ function applyLang(lang) {
   shareBtn.textContent = "🔗 " + t.share;
 }
 
+// Detect browser language and set default
+function detectLanguage() {
+  const browserLang = navigator.language || navigator.languages?.[0] || "en";
+  const langCode = browserLang.split("-")[0]; // Extract "ko" from "ko-KR"
+
+  // Check if detected language is supported
+  if (["en", "ko", "ja", "zh"].includes(langCode)) {
+    langSelect.value = langCode;
+  }
+}
+
+detectLanguage();
+
 langSelect.addEventListener("change", () => {
   applyLang(langSelect.value);
 });
