@@ -17,6 +17,11 @@
   --action-bg-hover: rgba(108, 92, 231, 0.3);
 }
 
+/* Hidden attribute */
+[hidden] {
+  display: none !important;
+}
+
 /* Light mode */
 [data-theme="light"] {
   --bg: #f8f9fa;
