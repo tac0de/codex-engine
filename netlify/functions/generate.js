@@ -68,6 +68,43 @@ function extractText(raw) {
   return text.trim();
 }
 
+function extractOutputText(raw) {
+  if (raw?.error?.message) {
+    throw new Error(`OpenAI error: ${raw.error.message}`);
+  }
+  if (
+    raw?.status === "incomplete" &&
+    raw?.incomplete_details?.reason === "max_output_tokens"
+  ) {
+    throw new Error("OpenAI response incomplete: max_output_tokens");
+  }
+
+  const output = Array.isArray(raw?.output) ? raw.output : [];
+  for (const item of output) {
+    if (item?.type === "message" && Array.isArray(item.content)) {
+      const refusal = item.content.find((c) => c?.type === "refusal");
+      if (refusal?.refusal) {
+        throw new Error(`OpenAI refusal: ${refusal.refusal}`);
+      }
+
+      const text = item.content
+        .filter((c) => c?.type === "output_text")
+        .map((c) => c.text)
+        .join("");
+      if (text.trim()) return text;
+    }
+
+    if (item?.type === "output_text" && typeof item.text === "string") {
+      if (item.text.trim()) return item.text;
+    }
+  }
+
+  const fallback = extractText(raw);
+  if (fallback) return fallback;
+
+  throw new Error("Empty OpenAI response");
+}
+
 function safeParseBody(body) {
   try {
     return JSON.parse(body || "{}");
@@ -97,7 +134,10 @@ exports.handler = async (event) => {
   const respond = (result, info) => buildResponse(result, debug, info);
 
   try {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey =
+      process.env.OPENAI_API_KEY ||
+      process.env.OPENAI_KEY ||
+      process.env.OPENAI_API_TOKEN;
     if (!apiKey) {
       console.error("Missing OPENAI_API_KEY");
       return respond(fallbackText, {
@@ -130,50 +170,110 @@ Example:
 Now write a new sentence.
 `;
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-    const res = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
+    const responseFormat = {
+      type: "json_schema",
+      name: "ability_sentence",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: {
+          result: { type: "string" },
+        },
+        required: ["result"],
+        additionalProperties: false,
       },
-      body: JSON.stringify({
-        model,
-        reasoning: { effort: "low" },
-        input: [
-          {
-            role: "system",
-            content: [{ type: "input_text", text: SYSTEM_PROMPT }],
-          },
-          {
-            role: "user",
-            content: [{ type: "input_text", text: USER_PROMPT }],
-          },
-        ],
-        max_output_tokens: 80,
-      }),
-      signal: controller.signal,
-    }).finally(() => clearTimeout(timeoutId));
+    };
 
-    const raw = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      console.error("OpenAI API error", res.status, raw);
+    const requestOnce = async (maxTokens) => {
+      const res = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          reasoning: { effort: "low" },
+          text: {
+            format: responseFormat,
+            verbosity: "low",
+          },
+          input: [
+            {
+              role: "system",
+              content: [{ type: "input_text", text: SYSTEM_PROMPT }],
+            },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "input_text",
+                  text: `${USER_PROMPT}\nOutput ONLY valid JSON: {"result":"..."}\n`,
+                },
+              ],
+            },
+          ],
+          max_output_tokens: maxTokens,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`OpenAI error: ${await res.text()}`);
+      }
+
+      return res.json();
+    };
+
+    const tokenAttempts = [120, 200, 320];
+    let outputText = "";
+    let lastError = null;
+
+    for (const tokens of tokenAttempts) {
+      try {
+        const data = await requestOnce(tokens);
+        outputText = extractOutputText(data);
+        if (outputText.trim()) break;
+      } catch (e) {
+        lastError = e;
+        const message = e instanceof Error ? e.message : String(e);
+        if (!message.includes("max_output_tokens")) {
+          console.error("Raw OpenAI response error:", e);
+          break;
+        }
+      }
+    }
+
+    if (!outputText.trim()) {
+      const message =
+        lastError instanceof Error ? lastError.message : String(lastError);
+      console.error("OpenAI response failed, using fallback:", message);
       return respond(fallbackText, {
         source: "fallback",
         reason: "openai_error",
-        status: res.status,
-        error: raw?.error?.message,
+        error: message,
       });
     }
 
-    const text = extractText(raw) || fallbackText;
+    let result = "";
+    try {
+      const parsed = JSON.parse(outputText);
+      result = String(parsed?.result ?? "").trim();
+    } catch (parseError) {
+      console.error("OpenAI parse failed, using fallback:", parseError);
+      return respond(fallbackText, {
+        source: "fallback",
+        reason: "parse_error",
+      });
+    }
 
-    return respond(text, {
-      source: text === fallbackText ? "fallback" : "openai",
-      model,
-    });
+    if (!result) {
+      return respond(fallbackText, {
+        source: "fallback",
+        reason: "empty_result",
+      });
+    }
+
+    return respond(result, { source: "openai", model });
   } catch (err) {
     console.error("Function error", err);
     return respond(fallbackText, {
