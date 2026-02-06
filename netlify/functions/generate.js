@@ -274,7 +274,7 @@ Now write a new sentence.
       return res.json();
     };
 
-    const tokenAttempts = [120, 200, 320];
+    const tokenAttempts = [200, 500, 1000];
     const retryDelays = [0, 400, 900];
     let outputText = "";
     let lastError = null;
