@@ -130,18 +130,42 @@ body {
 .main {
   max-width: 600px;
   margin: 0 auto;
-  padding: 100px 24px 48px;
+  padding: 80px 24px 32px;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
 /* =====================================================
+   HEADER
+   ===================================================== */
+.header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  margin: 0 0 12px;
+  color: var(--text);
+}
+
+.description {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  margin: 0;
+  max-width: 400px;
+}
+
+/* =====================================================
    GOD ENTITY
    ===================================================== */
 .god-container {
-  margin-bottom: 48px;
-  padding: 48px 40px;
+  margin-bottom: 32px;
+  padding: 32px 28px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -572,7 +596,7 @@ body {
   width: 100%;
   display: flex;
   justify-content: center;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
 }
 
 .result-container {
@@ -580,13 +604,15 @@ body {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 32px;
-  min-height: 160px;
+  padding: 28px 24px;
+  min-height: 140px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
 }
 
 .result-container.has-result {
@@ -595,19 +621,65 @@ body {
 }
 
 .result-text {
-  font-size: 17px;
-  line-height: 1.8;
+  font-size: 18px;
+  line-height: 1.7;
   color: var(--text);
   opacity: 0;
   transform: translateY(8px);
   transition: all var(--transition-normal);
   text-align: left;
   width: 100%;
+  font-weight: 400;
+  letter-spacing: -0.01em;
 }
 
 .result-text.show {
   opacity: 1;
   transform: translateY(0);
+}
+
+/* Glitch reveal effect for result text */
+.result-text.reveal .char {
+  opacity: 0;
+  display: inline-block;
+  animation: charReveal 0.4s ease forwards;
+}
+
+.result-text.reveal .char:nth-child(1) { animation-delay: 0.02s; }
+.result-text.reveal .char:nth-child(2) { animation-delay: 0.04s; }
+.result-text.reveal .char:nth-child(3) { animation-delay: 0.06s; }
+.result-text.reveal .char:nth-child(4) { animation-delay: 0.08s; }
+.result-text.reveal .char:nth-child(5) { animation-delay: 0.1s; }
+.result-text.reveal .char:nth-child(6) { animation-delay: 0.12s; }
+.result-text.reveal .char:nth-child(7) { animation-delay: 0.14s; }
+.result-text.reveal .char:nth-child(8) { animation-delay: 0.16s; }
+.result-text.reveal .char:nth-child(9) { animation-delay: 0.18s; }
+.result-text.reveal .char:nth-child(10) { animation-delay: 0.2s; }
+.result-text.reveal .char:nth-child(11) { animation-delay: 0.22s; }
+.result-text.reveal .char:nth-child(12) { animation-delay: 0.24s; }
+.result-text.reveal .char:nth-child(13) { animation-delay: 0.26s; }
+.result-text.reveal .char:nth-child(14) { animation-delay: 0.28s; }
+.result-text.reveal .char:nth-child(15) { animation-delay: 0.3s; }
+
+/* Apply staggered delay for all remaining characters */
+.result-text.reveal .char:nth-child(n+16) {
+  animation-delay: calc(0.3s + (attr(data-index) - 15) * 0.015s);
+}
+
+@keyframes charReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.95);
+    filter: blur(2px);
+  }
+  50% {
+    transform: translateY(1px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
 }
 
 .result-text:empty::after {
@@ -619,7 +691,7 @@ body {
 }
 
 .result-actions {
-  margin-top: 24px;
+  margin-top: 20px;
   width: 100%;
   display: flex;
   gap: 12px;
@@ -656,7 +728,7 @@ body {
    STATS
    ===================================================== */
 .stats {
-  margin-top: 32px;
+  margin-top: 24px;
 }
 
 .stat-item {
@@ -886,19 +958,24 @@ body {
    ===================================================== */
 @media (max-width: 640px) {
   .main {
-    padding: 80px 20px 40px;
+    padding: 70px 20px 32px;
+  }
+
+  .header {
+    margin-bottom: 20px;
   }
 
   .title {
-    font-size: 24px;
+    font-size: 22px;
   }
 
   .description {
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .god-container {
-    padding: 40px 24px;
+    padding: 28px 20px;
+    margin-bottom: 24px;
   }
 
   .god-frame-top-left,
@@ -911,22 +988,22 @@ body {
 
   .god-frame-top-left,
   .god-frame-top-right {
-    top: 12px;
+    top: 10px;
   }
 
   .god-frame-bottom-left,
   .god-frame-bottom-right {
-    bottom: 12px;
+    bottom: 10px;
   }
 
   .god-frame-top-left,
   .god-frame-bottom-left {
-    left: 12px;
+    left: 10px;
   }
 
   .god-frame-top-right,
   .god-frame-bottom-right {
-    right: 12px;
+    right: 10px;
   }
 
   .god-entity {
@@ -949,13 +1026,21 @@ body {
     height: 160px;
   }
 
+  .action-container {
+    margin-bottom: 20px;
+  }
+
   .result-container {
-    padding: 24px;
-    min-height: 140px;
+    padding: 24px 20px;
+    min-height: 120px;
   }
 
   .result-text {
     font-size: 16px;
+  }
+
+  .stats {
+    margin-top: 20px;
   }
 
   .modal-content {

@@ -65,12 +65,47 @@ function addRecentAbility(ability) {
 }
 
 // =====================================================
+// TEXT REVEAL ANIMATION
+// =====================================================
+function revealText(text, element) {
+  // Clear element
+  element.innerHTML = "";
+  element.classList.remove("reveal");
+
+  // Split text into characters (preserving spaces)
+  const chars = text.split("");
+
+  // Create span for each character
+  const fragment = document.createDocumentFragment();
+  chars.forEach((char, index) => {
+    const span = document.createElement("span");
+    span.className = "char";
+    span.textContent = char;
+    span.dataset.index = index;
+
+    // Apply dynamic delay based on position
+    const baseDelay = 0.02;
+    const staggerDelay = 0.015;
+    span.style.animationDelay = `${baseDelay + (index * staggerDelay)}s`;
+
+    fragment.appendChild(span);
+  });
+
+  element.appendChild(fragment);
+
+  // Trigger animation
+  requestAnimationFrame(() => {
+    element.classList.add("reveal");
+  });
+}
+
+// =====================================================
 // UI TEXT TRANSLATIONS
 // =====================================================
 const UI_TEXT = {
   en: {
     title: "Receive Your Gift",
-    desc: "The Divine Entity offers you power, but every blessing carries its burden. Kneel and receive what you are given.",
+    desc: "The Divine Entity offers you power, but every blessing carries its burden.",
     btn: "Receive",
     loading: "The Divine Entity shifts...",
     copy: "Copy",
@@ -82,7 +117,7 @@ const UI_TEXT = {
   },
   ko: {
     title: "당신의 선물을 받으세요",
-    desc: "신성한 존재가 당신에게 힘을 제안하지만, 모든 축복에는 짐이 따릅니다. 무릎을 꿇고 주어진 것을 받으세요.",
+    desc: "신성한 존재가 당신에게 힘을 제안하지만, 모든 축복에는 짐이 따릅니다.",
     btn: "받기",
     loading: "신성한 존재가 변화합니다...",
     copy: "복사",
@@ -94,7 +129,7 @@ const UI_TEXT = {
   },
   ja: {
     title: "贈り物を受け取る",
-    desc: "神聖な存在が力を捧げるが、全ての祝福には重荷が伴う。ひざまずき、与えられるものを受け取れ。",
+    desc: "神聖な存在が力を捧げるが、全ての祝福には重荷が伴う。",
     btn: "受け取る",
     loading: "神聖な存在が移り変わる...",
     copy: "コピー",
@@ -106,7 +141,7 @@ const UI_TEXT = {
   },
   zh: {
     title: "接受你的恩赐",
-    desc: "神圣存在赐予你力量，但每个祝福都伴随着负担。跪下接受你所被赐予的。",
+    desc: "神圣存在赐予你力量，但每个祝福都伴随着负担。",
     btn: "接受",
     loading: "神圣存在正在转变...",
     copy: "复制",
@@ -128,11 +163,6 @@ function applyLang(lang) {
   btn.querySelector(".btn-text").textContent = t.btn;
   copyBtn.textContent = t.copy;
   generatedLabel.textContent = t.generated;
-
-  // Update empty state
-  if (!resultText.textContent || resultText.classList.contains("empty-state")) {
-    resultText.classList.add("empty-state");
-  }
 }
 
 function detectLanguage() {
@@ -209,14 +239,18 @@ btn.addEventListener("click", async () => {
     loadingContainer.hidden = true;
 
     if (currentResult) {
-      resultText.textContent = currentResult;
       resultContainer.classList.add("has-result");
 
-      // Show result with animation
+      // Use reveal animation
+      revealText(currentResult, resultText);
+
+      // Show the container
+      resultText.classList.add("show");
+
+      // Focus button for quick repeat
       setTimeout(() => {
-        resultText.classList.add("show");
         btn.focus();
-      }, 50);
+      }, 100);
 
       resultActions.hidden = false;
 
@@ -253,11 +287,17 @@ btn.addEventListener("click", async () => {
 copyBtn.addEventListener("click", async () => {
   if (!currentResult) return;
 
+  // Get the plain text (without spans)
+  const textToCopy = currentResult;
+
   try {
-    await navigator.clipboard.writeText(currentResult);
+    await navigator.clipboard.writeText(textToCopy);
     const lang = langSelect.value;
     const t = UI_TEXT[lang] || UI_TEXT.en;
     showToast(t.copied);
+
+    // Keep focus on button for repeat
+    btn.focus();
   } catch (e) {
     const lang = langSelect.value;
     const t = UI_TEXT[lang] || UI_TEXT.en;
@@ -270,6 +310,8 @@ copyBtn.addEventListener("click", async () => {
 // =====================================================
 langSelect.addEventListener("change", () => {
   applyLang(langSelect.value);
+  // Refocus button on language change
+  btn.focus();
 });
 
 // =====================================================
@@ -280,12 +322,14 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     if (privacyModal.classList.contains("show")) {
       privacyModal.classList.remove("show");
-    } else {
+    } else if (currentResult) {
+      // Clear result and focus button for repeat
       currentResult = "";
-      resultText.textContent = "";
-      resultText.classList.remove("show");
+      resultText.innerHTML = "";
+      resultText.classList.remove("show", "reveal");
       resultContainer.classList.remove("has-result");
       resultActions.hidden = true;
+      btn.focus();
     }
   }
 
@@ -321,7 +365,5 @@ detectLanguage();
 applyLang(langSelect.value);
 updateStats();
 
-// Set empty state text on load
-const initialLang = langSelect.value;
-const initialText = UI_TEXT[initialLang] || UI_TEXT.en;
-// The empty state is handled by CSS ::after
+// Set focus on button on load for immediate use
+setTimeout(() => btn.focus(), 100);
