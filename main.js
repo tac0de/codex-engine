@@ -1177,7 +1177,6 @@ if (clearTreasuryBtn) {
 // =====================================================
 // DAILY BLESSING HANDLER
 // =====================================================
-const dailyIndicator = document.getElementById("dailyIndicator");
 if (dailyIndicator) {
   dailyIndicator.addEventListener("click", () => {
     if (isDailyAvailable()) {
