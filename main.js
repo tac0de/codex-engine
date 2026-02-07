@@ -32,6 +32,7 @@ const favorLabel = document.getElementById("favorLabel");
 const saveBtn = document.getElementById("saveBtn");
 const achievementsBtn = document.getElementById("achievementsBtn");
 const treasuryBtn = document.getElementById("treasuryBtn");
+const supportBtn = document.getElementById("supportBtn");
 const privacyTitle = document.getElementById("privacyTitle");
 const achievementsTitle = document.getElementById("achievementsTitle");
 const treasuryTitle = document.getElementById("treasuryTitle");
@@ -41,58 +42,43 @@ const footerNote = document.getElementById("footerNote");
 const exportTreasuryBtn = document.getElementById("exportTreasury");
 const clearTreasuryBtn = document.getElementById("clearTreasury");
 
-// State
-let busy = false;
-let currentResult = "";
-let currentRarity = "";
-let currentResultHandled = false;
-let generatedTotal = parseInt(localStorage.getItem("divine_generatedTotal") || "0");
-let hasGenerated = false;
-
-// =====================================================
-// LOCAL STORAGE - Recent Abilities & User Behavior Tracking
-// =====================================================
-const RECENT_ABILITIES_KEY = "divine_recentAbilities";
-const LIKED_ABILITIES_KEY = "divine_likedAbilities";
-const SKIPPED_ABILITIES_KEY = "divine_skippedAbilities";
-const MAX_RECENT = 20;
-const MAX_PREFERENCES = 50;
-
-// =====================================================
-// GAME SYSTEMS - Combo, Achievements, Treasury, Daily, Attitude
-// =====================================================
-const COMBO_KEY = "divine_combo";
-const ACHIEVEMENTS_KEY = "divine_achievements";
-const TREASURY_KEY = "divine_treasury";
-const DAILY_KEY = "divine_daily";
-const ATTITUDE_KEY = "divine_attitude";
-const DAILY_STREAK_KEY = "divine_dailyStreak";
-
-// Rarity tiers
-const RARITY = {
+const DP_CONFIG = window.DP_CONFIG || {};
+const STORAGE_KEYS = DP_CONFIG.STORAGE_KEYS || {};
+const LIMITS = DP_CONFIG.LIMITS || {};
+const RARITY = DP_CONFIG.RARITY || {
   COMMON: { name: "common", color: "#ffffff", weight: 60 },
   RARE: { name: "rare", color: "#4a9eff", weight: 25 },
   EPIC: { name: "epic", color: "#a855f7", weight: 12 },
   LEGENDARY: { name: "legendary", color: "#f59e0b", weight: 3 },
 };
+const ACHIEVEMENTS_DEF = DP_CONFIG.ACHIEVEMENTS_DEF || {};
+const RECENT_ABILITIES_KEY = STORAGE_KEYS.recentAbilities || "divine_recentAbilities";
+const LIKED_ABILITIES_KEY = STORAGE_KEYS.likedAbilities || "divine_likedAbilities";
+const SKIPPED_ABILITIES_KEY = STORAGE_KEYS.skippedAbilities || "divine_skippedAbilities";
+const COMBO_KEY = STORAGE_KEYS.combo || "divine_combo";
+const ACHIEVEMENTS_KEY = STORAGE_KEYS.achievements || "divine_achievements";
+const TREASURY_KEY = STORAGE_KEYS.treasury || "divine_treasury";
+const DAILY_KEY = STORAGE_KEYS.daily || "divine_daily";
+const ATTITUDE_KEY = STORAGE_KEYS.attitude || "divine_attitude";
+const DAILY_STREAK_KEY = STORAGE_KEYS.dailyStreak || "divine_dailyStreak";
+const MAX_RECENT = LIMITS.maxRecent || 20;
+const MAX_PREFERENCES = LIMITS.maxPreferences || 50;
+const MAX_TREASURY = LIMITS.maxTreasury || 100;
+const GENERATE_COOLDOWN_MS = LIMITS.generateCooldownMs || 1200;
 
-// Achievements definition
-const ACHIEVEMENTS_DEF = {
-  first_gift: { id: "first_gift", name: { en: "Seeker", ko: "구도자", ja: "探求者", zh: "追寻者" }, desc: { en: "Receive your first gift", ko: "첫 선물 받기", ja: "最初の贈り物", zh: "接收第一份恩赐" }, requirement: { type: "generated", value: 1 } },
-  ten_gifts: { id: "ten_gifts", name: { en: "Devoted", ko: "헌신자", ja: "献身者", zh: "虔诚者" }, desc: { en: "Receive 10 gifts", ko: "10개의 선물 받기", ja: "10個の贈り物", zh: "接收10份恩赐" }, requirement: { type: "generated", value: 10 } },
-  fifty_gifts: { id: "fifty_gifts", name: { en: "Ascendant", ko: "승천자", ja: "昇天者", zh: "飞升者" }, desc: { en: "Receive 50 gifts", ko: "50개의 선물 받기", ja: "50個の贈り物", zh: "接收50份恩赐" }, requirement: { type: "generated", value: 50 } },
-  hundred_gifts: { id: "hundred_gifts", name: { en: "Transcendent", ko: "초월자", ja: "超越者", zh: "超越者" }, desc: { en: "Receive 100 gifts", ko: "100개의 선물 받기", ja: "100個の贈り物", zh: "接收100份恩赐" }, requirement: { type: "generated", value: 100 } },
-  combo_5: { id: "combo_5", name: { en: "Favored", ko: "축복받은 자", ja: "恵まれし者", zh: "受眷顾者" }, desc: { en: "Reach 5x combo", ko: "5콤보 달성", ja: "5コンボ達成", zh: "达成5连击" }, requirement: { type: "combo", value: 5 } },
-  combo_10: { id: "combo_10", name: { en: "Blessed", ko: "강림자", ja: "降臨者", zh: "降临者" }, desc: { en: "Reach 10x combo", ko: "10콤보 달성", ja: "10コンボ達成", zh: "达成10连击" }, requirement: { type: "combo", value: 10 } },
-  combo_20: { id: "combo_20", name: { en: "Divine", ko: "신성한 자", ja: "神聖なる者", zh: "神圣者" }, desc: { en: "Reach 20x combo", ko: "20콤보 달성", ja: "20コンボ達成", zh: "达成20连击" }, requirement: { type: "combo", value: 20 } },
-  collector_5: { id: "collector_5", name: { en: "Hoarding", ko: "수집가", ja: "収集家", zh: "收藏家" }, desc: { en: "Save 5 abilities", ko: "5개 능력 저장", ja: "5個保存", zh: "保存5个能力" }, requirement: { type: "treasury", value: 5 } },
-  collector_20: { id: "collector_20", name: { en: "Archivist", ko: "기록자", ja: "記録者", zh: "记录者" }, desc: { en: "Save 20 abilities", ko: "20개 능력 저장", ja: "20個保存", zh: "保存20个能力" }, requirement: { type: "treasury", value: 20 } },
-  discerning: { id: "discerning", name: { en: "Discerning", ko: "식별자", ja: "識別者", zh: "辨别者" }, desc: { en: "Skip 5 abilities", ko: "5개 능력 무시", ja: "5個スキップ", zh: "跳过5个能力" }, requirement: { type: "skipped", value: 5 } },
-  daily_streak_3: { id: "daily_streak_3", name: { en: "Pilgrim", ko: "순례자", ja: "巡礼者", zh: "朝圣者" }, desc: { en: "3 day daily streak", ko: "3일 연속", ja: "3日連続", zh: "连续3天" }, requirement: { type: "dailyStreak", value: 3 } },
-  daily_streak_7: { id: "daily_streak_7", name: { en: "Faithful", ko: "신실한 자", ja: "忠実者", zh: "忠实者" }, desc: { en: "7 day daily streak", ko: "7일 연속", ja: "7日連続", zh: "连续7天" }, requirement: { type: "dailyStreak", value: 7 } },
-  legendary_gift: { id: "legendary_gift", name: { en: "Chosen", ko: "선택받은 자", ja: "選ばれし者", zh: "天选者" }, desc: { en: "Receive a legendary gift", ko: "전설적 선물 받기", ja: "伝説的贈り物", zh: "接收传说恩赐" }, requirement: { type: "legendary", value: 1 } },
-  first_save: { id: "first_save", name: { en: "Curator", ko: "관리인", ja: "管理人", zh: "管理者" }, desc: { en: "Save first ability", ko: "첫 능력 저장", ja: "最初保存", zh: "保存第一个能力" }, requirement: { type: "firstSave", value: 1 } },
-};
+// State
+let busy = false;
+let currentResult = "";
+let currentRarity = "";
+let currentResultHandled = false;
+let generatedTotal =
+  (window.DP_STATE && window.DP_STATE.getNumber)
+    ? window.DP_STATE.getNumber(STORAGE_KEYS.generatedTotal || "divine_generatedTotal", 0)
+    : parseInt(localStorage.getItem(STORAGE_KEYS.generatedTotal || "divine_generatedTotal") || "0");
+let hasGenerated = false;
+let lastGenerateAtMs = 0;
+
+const sleepMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // =====================================================
 // COMBO SYSTEM
@@ -152,32 +138,17 @@ function updateComboDisplay() {
 // RARITY SYSTEM
 // =====================================================
 function generateRarity(combo = 0) {
-  // Higher combo = better rarity chance
-  const roll = Math.random() * 100;
-
-  // Calculate legendary bonus from combo
-  const legendaryBonus = Math.min(combo * 0.5, 10); // Max +10% at combo 20
-  const epicBonus = Math.min(combo * 1, 20); // Max +20% at combo 20
-  const rareBonus = Math.min(combo * 2, 30); // Max +30% at combo 20
-
-  // Adjusted weights based on combo
-  const legendaryThreshold = RARITY.LEGENDARY.weight + legendaryBonus;
-  const epicThreshold = legendaryThreshold + RARITY.EPIC.weight + epicBonus;
-  const rareThreshold = epicThreshold + RARITY.RARE.weight + rareBonus;
-
-  if (roll < legendaryThreshold) {
-    return RARITY.LEGENDARY;
-  } else if (roll < epicThreshold) {
-    return RARITY.EPIC;
-  } else if (roll < rareThreshold) {
-    return RARITY.RARE;
-  } else {
-    return RARITY.COMMON;
+  if (window.DP_RARITY && typeof window.DP_RARITY.generateRarity === "function") {
+    return window.DP_RARITY.generateRarity(RARITY, combo);
   }
+  return RARITY.COMMON;
 }
 
 function getRarityColor(rarityName) {
-  const rarity = Object.values(RARITY).find(r => r.name === rarityName);
+  if (window.DP_RARITY && typeof window.DP_RARITY.getRarityColor === "function") {
+    return window.DP_RARITY.getRarityColor(RARITY, rarityName);
+  }
+  const rarity = Object.values(RARITY).find((r) => r.name === rarityName);
   return rarity ? rarity.color : RARITY.COMMON.color;
 }
 
@@ -288,8 +259,8 @@ function addToTreasury(ability, rarity) {
     timestamp: Date.now(),
   });
 
-  // Keep max 100 items
-  const trimmed = treasury.slice(0, 100);
+  // Keep bounded number of items
+  const trimmed = treasury.slice(0, MAX_TREASURY);
 
   try {
     localStorage.setItem(TREASURY_KEY, JSON.stringify(trimmed));
@@ -556,101 +527,29 @@ function getPreferencePatterns() {
   };
 }
 
-// =====================================================
-// TEXT REVEAL ANIMATION
-// =====================================================
-function revealText(text, element) {
-  // Clear element
-  element.innerHTML = "";
-  element.classList.remove("reveal");
-
-  // Split text into characters (preserving spaces)
-  const chars = text.split("");
-
-  // Create span for each character
-  const fragment = document.createDocumentFragment();
-  chars.forEach((char, index) => {
-    const span = document.createElement("span");
-    span.className = "char";
-    span.textContent = char;
-    span.dataset.index = index;
-
-    // Apply dynamic delay based on position
-    const baseDelay = 0.02;
-    const staggerDelay = 0.015;
-    span.style.animationDelay = `${baseDelay + (index * staggerDelay)}s`;
-
-    fragment.appendChild(span);
-  });
-
-  element.appendChild(fragment);
-
-  // Trigger animation
-  requestAnimationFrame(() => {
-    element.classList.add("reveal");
-  });
-}
+const revealText =
+  (window.DP_UI && typeof window.DP_UI.revealText === "function")
+    ? window.DP_UI.revealText
+    : function fallbackRevealText(text, element) {
+        if (!element) return;
+        element.textContent = text || "";
+      };
 
 // =====================================================
-// BUTTON TEXT - Dynamic & Addictive
+// TEXT TABLES (i18n)
 // =====================================================
-const BUTTON_TEXT = {
-  en: {
-    initial: "Receive",
-    after: [
-      "Receive Another",
-      "Seek More Power",
-      "Ask Again",
-      "Request Another Gift",
-      "Challenge Fate",
-      "Embrace Another Burden",
-      "The Entity Waits",
-      "Take Another",
-    ],
-  },
-  ko: {
-    initial: "받기",
-    after: [
-      "더 받기",
-      "다시 요청",
-      "또 다른 선물",
-      "운명에 도전",
-      "또 다른 짐을 짊어지세요",
-      "신성한 존재가 기다립니다",
-      "계속하세요",
-    ],
-  },
-  ja: {
-    initial: "受け取る",
-    after: [
-      "もう一度",
-      "さらに力を",
-      "再び問う",
-      "別の贈り物を",
-      "運命に挑む",
-      "新たな重荷を",
-      "神は待っている",
-      "受け取り続ける",
-    ],
-  },
-  zh: {
-    initial: "接受",
-    after: [
-      "再接受一次",
-      "寻求更多力量",
-      "再次请求",
-      "接受另一个恩赐",
-      "挑战命运",
-      "拥抱新的负担",
-      "神在等待",
-      "继续接受",
-    ],
-  },
-};
+// Loaded from js/text.js into window.DP_TEXT.
+const BUTTON_TEXT =
+  (window.DP_TEXT && window.DP_TEXT.BUTTON_TEXT) ? window.DP_TEXT.BUTTON_TEXT : { en: { initial: "Receive", after: ["Receive"] } };
+const UI_TEXT =
+  (window.DP_TEXT && window.DP_TEXT.UI_TEXT) ? window.DP_TEXT.UI_TEXT : { en: { title: "Receive Your Gift" } };
 
 function getRandomButtonText(lang) {
+  if (window.DP_TEXT && typeof window.DP_TEXT.getRandomButtonText === "function") {
+    return window.DP_TEXT.getRandomButtonText(lang);
+  }
   const texts = BUTTON_TEXT[lang] || BUTTON_TEXT.en;
-  const afterTexts = texts.after || texts.initial;
+  const afterTexts = texts.after || [texts.initial];
   return afterTexts[Math.floor(Math.random() * afterTexts.length)];
 }
 
@@ -663,171 +562,27 @@ function updateButtonText(lang) {
 }
 
 function getRarityLabel(rarityName, lang) {
-  const t = UI_TEXT[lang] || UI_TEXT.en;
-  return t.rarityLabels?.[rarityName] || rarityName;
+  if (window.DP_TEXT && typeof window.DP_TEXT.getRarityLabel === "function") {
+    return window.DP_TEXT.getRarityLabel(rarityName, lang);
+  }
+  const t = UI_TEXT[lang] || UI_TEXT.en || {};
+  return (t.rarityLabels && t.rarityLabels[rarityName]) ? t.rarityLabels[rarityName] : rarityName;
 }
 
-// =====================================================
-// UI TEXT TRANSLATIONS
-// =====================================================
-const UI_TEXT = {
-  en: {
-    langLabel: "Language",
-    close: "Close",
-    title: "Receive Your Gift",
-    desc: "The Divine Entity offers you power, but every blessing carries its burden.",
-    btn: "Receive",
-    loading: "The Divine Entity shifts...",
-    copy: "Copy",
-    copied: "Copied",
-    copyError: "Copy failed",
-    save: "Archive Relic",
-    saveSuccess: "Relic archived",
-    saveDuplicate: "Already archived",
-    generated: "Gifts Received",
-    divineFavor: "Divine Favor",
-    achievements: "Achievements",
-    treasury: "Treasury",
-    privacy: "Privacy",
-    about: "About",
-    contact: "Contact",
-    privacyTitle: "Privacy Policy",
-    achievementsTitle: "Achievements",
-    treasuryTitle: "Your Treasury",
-    exportCollection: "Export Collection",
-    clearAll: "Clear All",
-    legendaryGift: "✨ LEGENDARY GIFT ✨",
-    treasuryEmptyTitle: "Your treasury is empty.",
-    treasuryEmptyDesc: "Save abilities to build your collection.",
-    removedFromTreasury: "Removed from Treasury",
-    treasuryIsEmpty: "Treasury is empty",
-    exportedCollection: "Collection exported to clipboard",
-    exportFailed: "Export failed",
-    clearConfirm: "Are you sure you want to clear your entire treasury? This cannot be undone.",
-    treasuryCleared: "Treasury cleared",
-    footerNote: "© 2025 The Divine Paradox",
-    emptyResult: "Your gift will appear here",
-    error: "The Divine Entity is silent. Try again.",
-    rarityLabels: { common: "common", rare: "rare", epic: "epic", legendary: "legendary" },
-  },
-  ko: {
-    langLabel: "언어",
-    close: "닫기",
-    title: "당신의 선물을 받으세요",
-    desc: "신성한 존재가 당신에게 힘을 제안하지만, 모든 축복에는 짐이 따릅니다.",
-    btn: "받기",
-    loading: "신성한 존재가 변화합니다...",
-    copy: "복사",
-    copied: "복사됨",
-    copyError: "복사 실패",
-    save: "성물 봉인",
-    saveSuccess: "성물함에 봉인됨",
-    saveDuplicate: "이미 봉인된 성물",
-    generated: "받은 선물",
-    divineFavor: "신의 총애",
-    achievements: "업적",
-    treasury: "보물고",
-    privacy: "개인정보",
-    about: "소개",
-    contact: "문의",
-    privacyTitle: "개인정보 처리방침",
-    achievementsTitle: "업적",
-    treasuryTitle: "당신의 보물고",
-    exportCollection: "컬렉션 내보내기",
-    clearAll: "전체 삭제",
-    legendaryGift: "✨ 전설의 선물 ✨",
-    treasuryEmptyTitle: "보물고가 비어 있습니다.",
-    treasuryEmptyDesc: "능력을 저장해 컬렉션을 쌓아보세요.",
-    removedFromTreasury: "보물고에서 제거됨",
-    treasuryIsEmpty: "보물고가 비어 있습니다",
-    exportedCollection: "컬렉션을 클립보드로 내보냈습니다",
-    exportFailed: "내보내기 실패",
-    clearConfirm: "보물고를 전부 비우시겠어요? 이 작업은 되돌릴 수 없습니다.",
-    treasuryCleared: "보물고를 비웠습니다",
-    footerNote: "© 2025 The Divine Paradox",
-    emptyResult: "당신의 선물이 여기에 나타납니다",
-    error: "신성한 존재가 침묵합니다. 다시 시도하세요.",
-    rarityLabels: { common: "일반", rare: "희귀", epic: "영웅", legendary: "전설" },
-  },
-  ja: {
-    langLabel: "言語",
-    close: "閉じる",
-    title: "贈り物を受け取る",
-    desc: "神聖な存在が力を捧げるが、全ての祝福には重荷が伴う。",
-    btn: "受け取る",
-    loading: "神聖な存在が移り変わる...",
-    copy: "コピー",
-    copied: "コピーしました",
-    copyError: "コピー失敗",
-    save: "聖遺物として収蔵",
-    saveSuccess: "宝物庫に収蔵しました",
-    saveDuplicate: "すでに収蔵済みです",
-    generated: "受け取った贈り物",
-    divineFavor: "神の加護",
-    achievements: "実績",
-    treasury: "宝物庫",
-    privacy: "プライバシー",
-    about: "概要",
-    contact: "連絡先",
-    privacyTitle: "プライバシーポリシー",
-    achievementsTitle: "実績",
-    treasuryTitle: "あなたの宝物庫",
-    exportCollection: "コレクションを書き出す",
-    clearAll: "すべて削除",
-    legendaryGift: "✨ 伝説の贈り物 ✨",
-    treasuryEmptyTitle: "宝物庫は空です。",
-    treasuryEmptyDesc: "能力を保存してコレクションを作りましょう。",
-    removedFromTreasury: "宝物庫から削除しました",
-    treasuryIsEmpty: "宝物庫は空です",
-    exportedCollection: "コレクションをクリップボードに書き出しました",
-    exportFailed: "書き出しに失敗しました",
-    clearConfirm: "宝物庫をすべて消去しますか？この操作は元に戻せません。",
-    treasuryCleared: "宝物庫を消去しました",
-    footerNote: "© 2025 The Divine Paradox",
-    emptyResult: "あなたの贈り物がここに現れます",
-    error: "神聖な存在が沈黙しています。もう一度試してください。",
-    rarityLabels: { common: "コモン", rare: "レア", epic: "エピック", legendary: "レジェンダリー" },
-  },
-  zh: {
-    langLabel: "语言",
-    close: "关闭",
-    title: "接受你的恩赐",
-    desc: "神圣存在赐予你力量，但每个祝福都伴随着负担。",
-    btn: "接受",
-    loading: "神圣存在正在转变...",
-    copy: "复制",
-    copied: "已复制",
-    copyError: "复制失败",
-    save: "封存圣物",
-    saveSuccess: "已封存入宝库",
-    saveDuplicate: "宝库中已存在",
-    generated: "已接收恩赐",
-    divineFavor: "神之眷顾",
-    achievements: "成就",
-    treasury: "宝库",
-    privacy: "隐私",
-    about: "关于",
-    contact: "联系",
-    privacyTitle: "隐私政策",
-    achievementsTitle: "成就",
-    treasuryTitle: "你的宝库",
-    exportCollection: "导出收藏",
-    clearAll: "全部清空",
-    legendaryGift: "✨ 传说恩赐 ✨",
-    treasuryEmptyTitle: "宝库是空的。",
-    treasuryEmptyDesc: "保存能力来建立你的收藏。",
-    removedFromTreasury: "已从宝库移除",
-    treasuryIsEmpty: "宝库为空",
-    exportedCollection: "收藏已导出到剪贴板",
-    exportFailed: "导出失败",
-    clearConfirm: "确定要清空整个宝库吗？此操作无法撤销。",
-    treasuryCleared: "宝库已清空",
-    footerNote: "© 2025 The Divine Paradox",
-    emptyResult: "你的恩赐将出现在这里",
-    error: "神圣存在保持沉默。请再试一次。",
-    rarityLabels: { common: "普通", rare: "稀有", epic: "史诗", legendary: "传说" },
-  },
-};
+function initSupportButton() {
+  if (!supportBtn) return;
+
+  const url = (typeof window !== "undefined" && window.__GUMROAD_PRODUCT_URL__) ? String(window.__GUMROAD_PRODUCT_URL__).trim() : "";
+  if (!url) {
+    supportBtn.hidden = true;
+    supportBtn.removeAttribute("href");
+    return;
+  }
+
+  supportBtn.hidden = false;
+  supportBtn.href = url;
+  supportBtn.classList.add("gumroad-button");
+}
 
 // =====================================================
 // LANGUAGE
@@ -863,6 +618,9 @@ function applyLang(lang) {
   }
   if (treasuryBtn) {
     treasuryBtn.textContent = t.treasury;
+  }
+  if (supportBtn) {
+    supportBtn.textContent = t.support;
   }
   if (privacyLink) {
     privacyLink.textContent = t.privacy;
@@ -926,19 +684,24 @@ function updateStats() {
 }
 
 function saveStats() {
-  localStorage.setItem("divine_generatedTotal", generatedTotal.toString());
+  if (window.DP_STATE && window.DP_STATE.setNumber) {
+    window.DP_STATE.setNumber(STORAGE_KEYS.generatedTotal || "divine_generatedTotal", generatedTotal);
+    return;
+  }
+  localStorage.setItem(STORAGE_KEYS.generatedTotal || "divine_generatedTotal", generatedTotal.toString());
 }
 
-// =====================================================
-// TOAST NOTIFICATION
-// =====================================================
-function showToast(message, duration = 2000) {
+const showToast = (message, duration = 2000) => {
+  if (window.DP_UI && typeof window.DP_UI.showToast === "function") {
+    window.DP_UI.showToast(toast, toastMessage, message, duration);
+    return;
+  }
   toastMessage.textContent = message;
   toast.classList.add("show");
   setTimeout(() => {
     toast.classList.remove("show");
   }, duration);
-}
+};
 
 // =====================================================
 // GENERATE ABILITY
@@ -955,6 +718,13 @@ btn.addEventListener("click", async () => {
   if (godEntity) {
     godEntity.classList.add("active");
   }
+
+  // Soft cooldown: keeps the UX "unlimited", but smooths out rapid spam clicks.
+  const sinceLast = Date.now() - lastGenerateAtMs;
+  if (sinceLast >= 0 && sinceLast < GENERATE_COOLDOWN_MS) {
+    await sleepMs(GENERATE_COOLDOWN_MS - sinceLast);
+  }
+  lastGenerateAtMs = Date.now();
 
   // Skip is now inferred only when moving on without saving/copying.
   if (currentResult && !currentResultHandled) {
@@ -991,14 +761,9 @@ btn.addEventListener("click", async () => {
   const preferencePatterns = getPreferencePatterns();
 
   try {
-    const res = await fetch("/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lang, recentAbilities, preferencePatterns }),
-    });
-
-    if (!res.ok) throw new Error("Request failed");
-    const data = await res.json();
+    const data = await (window.DP_API && window.DP_API.generateAbility
+      ? window.DP_API.generateAbility({ lang, recentAbilities, preferencePatterns })
+      : Promise.reject(new Error("API client not loaded")));
 
     currentResult = data.result || "";
 
@@ -1361,6 +1126,7 @@ if (clearTreasuryBtn) {
 detectLanguage();
 applyLang(langSelect.value);
 updateStats();
+initSupportButton();
 
 // Initialize game systems
 updateComboDisplay();

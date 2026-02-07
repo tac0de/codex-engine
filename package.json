@@ -15,6 +15,22 @@
   "type": "commonjs",
   "main": "main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"No test suite configured\"",
+    "lint": "eslint . --ext .js",
+    "lint:fix": "eslint . --ext .js --fix",
+    "format": "prettier --write \"**/*.{js,json,md,css,html}\"",
+    "format:check": "prettier --check \"**/*.{js,json,md,css,html}\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@netlify/functions": "^3.1.8",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.19.0",
+    "@types/node": "^22.13.4",
+    "eslint": "^9.19.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3"
   }
 }

@@ -1,6 +1,7 @@
 // =====================================================
 // THE DIVINE PARADOX - Generation Logic
 // =====================================================
+const { z } = require("zod");
 
 const FALLBACKS = {
   en: [
@@ -170,6 +171,24 @@ function safeParseBody(body) {
   }
 }
 
+const requestSchema = z.object({
+  lang: z.enum(["en", "ko", "ja", "zh"]).optional(),
+  recentAbilities: z.array(z.string()).max(30).optional(),
+  preferencePatterns: z
+    .object({
+      likedCount: z.number().optional(),
+      skippedCount: z.number().optional(),
+      totalGenerated: z.number().optional(),
+      combo: z.number().optional(),
+      attitude: z.number().optional(),
+      recentLiked: z.array(z.string()).max(30).optional(),
+      recentSkipped: z.array(z.string()).max(30).optional(),
+    })
+    .passthrough()
+    .optional(),
+  debug: z.boolean().optional(),
+});
+
 function buildResponse(result, debug, debugInfo) {
   const body = debug
     ? { result, debug: debugInfo || {} }
@@ -203,6 +222,104 @@ function getCachedResult(lang) {
   } catch {
     return "";
   }
+}
+
+// =====================================================
+// ABUSE PREVENTION (best-effort, no-login, no-DB)
+// =====================================================
+const RATE_STATE = new Map(); // key -> { tokens, updatedAtMs }
+const RESULT_CACHE = new Map(); // key -> { result, atMs }
+
+function getClientIp(event) {
+  const h = event?.headers || {};
+  const raw =
+    h["x-nf-client-connection-ip"] ||
+    h["x-forwarded-for"] ||
+    h["client-ip"] ||
+    "";
+  const first = String(raw).split(",")[0].trim();
+  return first || "unknown";
+}
+
+function getOrigin(event) {
+  const h = event?.headers || {};
+  return (
+    h.origin ||
+    h.Origin ||
+    h.referer ||
+    h.Referer ||
+    ""
+  );
+}
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+  const o = String(origin);
+  return (
+    o.includes("ability-paradox-generator.netlify.app") ||
+    o.includes("ability-paradox-generator.com") ||
+    o.includes("localhost") ||
+    o.includes("127.0.0.1")
+  );
+}
+
+function rateLimitConsume(key, nowMs) {
+  // Token bucket: bursty feel, but caps sustained abuse.
+  const capacity = 10;
+  const refillPerMin = 30; // ~1 call per 2s sustained
+  const refillPerMs = refillPerMin / 60000;
+
+  const prev = RATE_STATE.get(key) || { tokens: capacity, updatedAtMs: nowMs };
+  const elapsed = Math.max(0, nowMs - prev.updatedAtMs);
+  const tokens = Math.min(capacity, prev.tokens + elapsed * refillPerMs);
+
+  const allowed = tokens >= 1;
+  RATE_STATE.set(key, {
+    tokens: allowed ? tokens - 1 : tokens,
+    updatedAtMs: nowMs,
+  });
+  return allowed;
+}
+
+function getCachedResultForKey(cacheKey, nowMs, ttlMs) {
+  const entry = RESULT_CACHE.get(cacheKey);
+  if (!entry) return "";
+  if (nowMs - entry.atMs > ttlMs) {
+    RESULT_CACHE.delete(cacheKey);
+    return "";
+  }
+  return entry.result || "";
+}
+
+function setCachedResultForKey(cacheKey, result) {
+  if (!result) return;
+  RESULT_CACHE.set(cacheKey, { result, atMs: Date.now() });
+}
+
+function normalizeStringArray(value, maxItems, maxCharsPerItem) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const raw of value) {
+    if (typeof raw !== "string") continue;
+    const s = raw.replace(/\s+/g, " ").trim().slice(0, maxCharsPerItem);
+    if (!s) continue;
+    out.push(s);
+    if (out.length >= maxItems) break;
+  }
+  return out;
+}
+
+function normalizePreferencePatterns(value) {
+  const obj = (value && typeof value === "object") ? value : {};
+  return {
+    likedCount: Number.isFinite(obj.likedCount) ? obj.likedCount : 0,
+    skippedCount: Number.isFinite(obj.skippedCount) ? obj.skippedCount : 0,
+    totalGenerated: Number.isFinite(obj.totalGenerated) ? obj.totalGenerated : 0,
+    combo: Number.isFinite(obj.combo) ? obj.combo : 0,
+    attitude: Number.isFinite(obj.attitude) ? obj.attitude : 50,
+    recentLiked: normalizeStringArray(obj.recentLiked, 3, 180),
+    recentSkipped: normalizeStringArray(obj.recentSkipped, 2, 180),
+  };
 }
 
 // Generate a more varied system prompt
@@ -387,16 +504,48 @@ function generateUserPrompt(lang, recentAbilities = [], preferencePatterns = {})
 }
 
 exports.handler = async (event) => {
-  const body = safeParseBody(event.body);
-  const lang = body?.lang || "en";
-  const recentAbilities = body?.recentAbilities || [];
-  const preferencePatterns = body?.preferencePatterns || {};
+  const nowMs = Date.now();
+  const ip = getClientIp(event);
+  const origin = getOrigin(event);
+
+  const rawBody = safeParseBody(event.body);
+  const parsedBody = requestSchema.safeParse(rawBody);
+  const body = parsedBody.success ? parsedBody.data : {};
+  const langRaw = body.lang || "en";
+  const lang = ["en", "ko", "ja", "zh"].includes(langRaw) ? langRaw : "en";
+  const recentAbilities = normalizeStringArray(body.recentAbilities, 5, 220);
+  const preferencePatterns = normalizePreferencePatterns(body.preferencePatterns);
   const debug =
-    body?.debug === true ||
+    body.debug === true ||
     event?.queryStringParameters?.debug === "1" ||
     process.env.DEBUG_OPENAI === "1";
   const fallbackText = pickFallback(lang);
   const respond = (result, info) => buildResponse(result, debug, info);
+  const cacheKey = `${ip}:${lang}`;
+
+  // Basic request size guard (prevents huge payload abuse).
+  try {
+    const bodyString = typeof event?.body === "string" ? event.body : "";
+    if (bodyString && Buffer.byteLength(bodyString, "utf8") > 20000) {
+      const cached = getCachedResultForKey(cacheKey, nowMs, 5000);
+      return respond(cached || fallbackText, {
+        source: cached ? "cache" : "fallback",
+        reason: "body_too_large",
+      });
+    }
+  } catch {
+    // Ignore and proceed.
+  }
+
+  // Best-effort anti-abuse: allowlist origin + IP token bucket.
+  if (!isAllowedOrigin(origin) || !rateLimitConsume(ip, nowMs)) {
+    const cached = getCachedResultForKey(cacheKey, nowMs, 5000);
+    await sleep(250);
+    return respond(cached || fallbackText, {
+      source: cached ? "cache" : "fallback",
+      reason: !isAllowedOrigin(origin) ? "origin_blocked" : "rate_limited",
+    });
+  }
   const requestId =
     event?.headers?.["x-nf-request-id"] ||
     event?.headers?.["x-request-id"] ||
@@ -574,6 +723,7 @@ exports.handler = async (event) => {
       });
     }
 
+    setCachedResultForKey(cacheKey, result);
     return respond(result, { source: "openai", model });
   } catch (err) {
     console.error("Function error", err);

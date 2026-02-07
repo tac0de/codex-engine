@@ -39,12 +39,29 @@
     <!-- Canonical URL -->
     <link rel="canonical" href="https://ability-paradox-generator.netlify.app/" />
 
+    <!--
+      Gumroad (Support / Monetization)
+      Temporarily disabled. Re-enable when ready to monetize.
+    -->
+    <!-- <script src="https://gumroad.com/js/gumroad.js"></script> -->
+    <!--
+    <script>
+      window.__GUMROAD_PRODUCT_URL__ = "https://gum.co/abcde";
+    </script>
+    -->
+
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/assets/favicon.png" />
     <link rel="apple-touch-icon" href="/assets/favicon.png" />
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="style.css" />
+    <script src="js/config.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/text.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/systems/rarity.js"></script>
 
     <!-- Structured Data (JSON-LD) -->
     <script type="application/ld+json">
@@ -169,6 +186,9 @@
       <div class="action-buttons">
         <button id="achievementsBtn" class="btn-action">Achievements</button>
         <button id="treasuryBtn" class="btn-action">Treasury</button>
+        <!--
+        <a id="supportBtn" class="btn-action gumroad-button" href="https://gum.co/abcde" data-gumroad-overlay-checkout="true">Support</a>
+        -->
       </div>
 
       <!-- AdSense: Bottom -->

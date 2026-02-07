@@ -1,107 +1,189 @@
-# The Divine Paradox (ability-paradox-generator)
+## OpenAI API Design (Responses API)
 
-신성한 능력과 그에 따른 치명적 대가를 생성하는 멀티언어 웹앱입니다.  
-프런트엔드는 정적 파일(`index.html`, `style.css`, `main.js`)로 구성되고, 생성 API는 Netlify Function으로 동작합니다.
+This project uses the **OpenAI Responses API** as a small, reliable “generation engine” behind a simple web UI.
+The goal is not maximum complexity, but **predictable output** (one short sentence) with **strong guardrails** and **graceful failure**.
 
-## 핵심 기능
-- 능력 생성: `/api/generate` 호출로 단문 능력/대가 문장 생성
-- 다국어 UI: 영어/한국어/일본어/중국어 지원
-- 게임화 시스템:
-  - Divine Favor(콤보)
-  - 희귀도(Common/Rare/Epic/Legendary)
-  - Achievements(업적)
-  - Treasury(저장 컬렉션)
-- 사용자 행동 기반 학습:
-  - 최근 생성 능력 회피
-  - 저장/복사한 결과 선호 반영
-  - 저장/복사 없이 다음 생성 시 스킵으로 처리
+### High-Level Flow
 
-## 기술 스택
-- Frontend: Vanilla HTML/CSS/JS
-- Backend: Netlify Functions (Node.js)
-- LLM API: OpenAI Responses API
-- Storage: Browser `localStorage`
+1. Frontend sends a request with:
+   - `lang` (output language)
+   - `recentAbilities` (to avoid repetition)
+   - `preferencePatterns` (light preference learning signals)
+   - optional `debug`
 
-## 프로젝트 구조
-```txt
-.
-├─ index.html                    # UI 구조, 모달/버튼/통계 영역
-├─ style.css                     # 스타일, 애니메이션, 반응형
-├─ main.js                       # 앱 핵심 로직(i18n/상태/이벤트/게임 시스템)
-├─ netlify/functions/generate.js # 능력 생성 서버리스 함수
-├─ netlify.toml                  # Netlify 빌드/리다이렉트 설정
-├─ robots.txt
-├─ sitemap.xml
-└─ AGENTS.md                     # 에이전트(Codex/GLM) 전용 맥락 문서
+2. A serverless function builds prompts and calls `POST https://api.openai.com/v1/responses`
+3. The model returns **strict JSON**: `{"result":"..."}`
+4. The function validates, parses, and returns `{ result }` (or a fallback sentence on failure)
+
+This keeps the browser fully static and avoids exposing any API keys.
+
+---
+
+## Why Responses API (Not Chat Completions)
+
+Responses provides a modern interface for structured outputs and consistent extraction.
+This project takes advantage of:
+
+- **Structured outputs** via `text.format` + `json_schema`
+- A unified response shape that can be parsed and validated
+- Clear handling for “incomplete output” and refusals
+
+---
+
+## Prompt Architecture
+
+### 1) System Prompt = Rules & Identity
+
+The system prompt defines the “Divine Entity” voice and hard constraints:
+
+- Generate **ONE sentence**: (power) + (cost)
+- **Max 25 words**
+- No names, no stories, no explanations
+- Connect power and cost with “but” (or equivalent)
+- The power must feel divine; the cost must be personal and permanent
+
+This enforces consistency even when user prompts vary.
+
+### 2) User Prompt = Variation & Personalization
+
+The user prompt injects controlled variety without breaking the rules:
+
+- Output language guidance:
+  - Korean: spacing guidance (띄어쓰기)
+  - Japanese/Chinese: no spaces, natural punctuation
+
+- **Cultural inspiration** per language (mythology / literary tone)
+- “Preference learning” signals:
+  - `combo` ramps up creativity and magnitude
+  - `attitude` shifts benevolent vs ominous tone
+  - `recentLiked` and `recentSkipped` bias toward/away from patterns
+
+- Anti-repeat constraint:
+  - `recentAbilities` list is explicitly marked as “do not repeat”
+
+This creates novelty while keeping output short and well-formed.
+
+---
+
+## Structured Output (Strict JSON)
+
+To make parsing reliable, the request uses a strict JSON schema:
+
+- `text.format: { type: "json_schema", strict: true, schema: { result: string } }`
+
+Expected model output:
+
+```json
+{ "result": "..." }
 ```
 
-## 동작 방식
-1. 사용자가 생성 버튼 클릭
-2. 프런트가 언어/최근 결과/선호 패턴을 `/api/generate`로 전송
-3. 함수가 OpenAI API를 호출해 JSON 스키마 형태 응답 요청
-4. 프런트가 결과를 애니메이션과 함께 렌더링
-5. 저장/복사/재생성 행동이 콤보·태도·업적·선호 데이터에 반영
+Benefits:
 
-## 환경 변수
-`netlify/functions/generate.js` 기준:
+- The serverless function can safely `JSON.parse()` with minimal heuristics
+- Failures become explicit (parse error vs provider error vs empty output)
 
-- 필수
-  - `OPENAI_API_KEY`
-- 대체 키명(선택)
-  - `OPENAI_KEY`
-  - `OPENAI_API_TOKEN`
-- 선택
-  - `OPENAI_MODEL` (기본: `gpt-5-nano`)
-  - `DEBUG_OPENAI=1` (디버그 정보 포함 응답)
+---
 
-## 로컬 실행
-이 프로젝트는 정적 파일 + Netlify Function 구성입니다.
+## Reliability Strategy
 
-### 1) 프런트 정적 파일 서빙
-아무 정적 서버로 루트 디렉토리를 띄울 수 있습니다.
+### Multi-Attempt Token Budget
 
-```bash
-# 예시 (Node 내장 서버)
-npx serve .
+The function tries escalating `max_output_tokens`:
+
+- 200 → 500 → 1000
+
+This handles occasional “too short” or “incomplete” responses without overpaying upfront.
+
+### Retry Policy (Server Errors Only)
+
+A retry happens only when the error looks like a provider/server issue:
+
+- HTTP 5xx
+- `server_error` codes/types
+- server_error text in the message
+
+Delays are small and bounded:
+
+- 0ms → 400ms → 900ms
+
+If an error is not retryable, the function fails fast.
+
+### Hard Failure Modes (No Infinite Loops)
+
+The function treats these as terminal:
+
+- `max_output_tokens` incomplete responses
+- refusal content
+- empty or unparsable output after attempts
+
+This prevents runaway costs and avoids hanging requests.
+
+---
+
+## Extraction & Validation
+
+Even though output is expected as strict JSON, the implementation is defensive:
+
+- Detects provider errors (`raw.error.message`)
+- Detects incomplete output (`status === "incomplete"`)
+- Detects refusals inside `output[].content[].type === "refusal"`
+- Extracts text from multiple possible shapes (robust parsing fallback)
+
+Finally:
+
+- Parses JSON and reads `result`
+- If missing/empty, falls back cleanly
+
+---
+
+## Fallback & Graceful Degradation
+
+If OpenAI is unavailable (missing key, downtime, parse issues), the user still gets a valid “gift” sentence.
+
+Fallback sources:
+
+1. (Optional) cached result (placeholder in this repo)
+2. Language-specific curated fallback lists (`FALLBACKS[lang]`)
+3. Default English fallback
+
+This ensures the UI never “breaks” and user experience stays consistent.
+
+---
+
+## Debug Mode (Safe Observability)
+
+Debug can be enabled via:
+
+- Request body: `debug: true`
+- Query string: `?debug=1`
+- Env: `DEBUG_OPENAI=1`
+
+When enabled, the API response includes:
+
+- the source (`openai` / `fallback` / `cache`)
+- model name
+- error reasons when applicable
+
+In normal mode, the response is minimal:
+
+```json
+{ "result": "..." }
 ```
 
-### 2) 함수까지 포함해 로컬 실행(Netlify 권장)
-```bash
-npx netlify dev
-```
-- `netlify.toml`의 리다이렉트 설정으로 `/api/generate`가 함수로 연결됩니다.
-- 환경변수는 Netlify CLI 환경 파일/셸 환경변수로 주입합니다.
+---
 
-## 배포
-- Netlify 배포 기준:
-  - Publish directory: `.`
-  - Functions directory: `netlify/functions`
-  - Redirect: `/api/generate -> /.netlify/functions/generate` (200 rewrite)
+## Privacy & Security Notes
 
-## i18n 가이드
-- 번역 소스는 `main.js`의 `UI_TEXT` 객체입니다.
-- UI 문구를 추가할 때 `en/ko/ja/zh`를 모두 채워야 합니다.
-- 하드코딩 문구(토스트, confirm, placeholder)를 남기지 말고 `UI_TEXT`를 통해 노출하세요.
+- API keys live only in serverless environment variables
+- The browser never sees credentials
+- Inputs are intentionally small and non-sensitive
+- Logging avoids leaking user data (only high-level counters and request IDs)
 
-## 데이터 저장(브라우저)
-주요 `localStorage` 키:
-- `divine_generatedTotal`
-- `divine_recentAbilities`
-- `divine_likedAbilities`
-- `divine_skippedAbilities`
-- `divine_combo`
-- `divine_achievements`
-- `divine_treasury`
-- `divine_attitude`
-- `divine_daily`
-- `divine_dailyStreak`
+---
 
-## 품질 체크(권장)
-변경 후 최소 확인:
-1. `node --check main.js`
-2. 4개 언어 전환 시 UI 문구 반영 확인
-3. 생성/저장/복사/재생성 플로우 확인
-4. 저장·복사 없이 재생성 시 스킵 반영 확인
+## Tuning Points (If You Fork This)
 
-## 라이선스
-`LICENSE` 파일을 따릅니다.
+- Swap `OPENAI_MODEL` to trade quality vs cost
+- Adjust token budgets (200/500/1000) based on observed truncation rate
+- Expand fallback sets per language
+- Add real caching (KV/Redis) if you want “recent best” reuse during outages
