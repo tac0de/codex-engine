@@ -146,16 +146,36 @@
         </div>
         <div id="resultText" class="result-text"></div>
         <div id="resultActions" class="result-actions" hidden>
+          <button id="saveBtn" class="btn-save">Save</button>
+          <button id="dismissBtn" class="btn-dismiss">Dismiss</button>
           <button id="copyBtn" class="btn-copy">Copy</button>
         </div>
       </div>
 
-      <!-- Stats -->
-      <div class="stats">
+      <!-- Game Stats -->
+      <div class="game-stats">
         <div class="stat-item">
           <span id="generatedCount">0</span>
           <span id="generatedLabel" class="stat-label">Gifts Received</span>
         </div>
+        <div class="stat-item">
+          <span id="comboCount" class="combo-count"></span>
+          <span class="stat-label">Divine Favor</span>
+        </div>
+        <div class="stat-item">
+          <span id="attitudeDisplay" class="attitude-display"></span>
+          <span class="stat-label">God's Mood</span>
+        </div>
+        <div class="stat-item daily-wrapper">
+          <span id="dailyIndicator" class="daily-indicator"></span>
+          <span class="stat-label">Daily Blessing</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button id="achievementsBtn" class="btn-action">Achievements</button>
+        <button id="treasuryBtn" class="btn-action">Treasury</button>
       </div>
 
       <!-- AdSense: Bottom -->
@@ -231,6 +251,40 @@
           <p>
             For privacy inquiries: <a href="mailto:wonyoungchoiseoul@gmail.com">wonyoungchoiseoul@gmail.com</a>
           </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Achievements Modal -->
+    <div id="achievementsModal" class="modal">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h2>Achievements</h2>
+          <button class="modal-close" id="closeAchievements" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="achievementsList" class="achievements-list">
+            <!-- Achievements will be populated by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Treasury Modal -->
+    <div id="treasuryModal" class="modal">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h2>Your Treasury</h2>
+          <button class="modal-close" id="closeTreasury" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="treasuryList" class="treasury-list">
+            <!-- Treasury items will be populated by JS -->
+          </div>
+          <div class="treasury-actions">
+            <button id="exportTreasury" class="btn-action">Export Collection</button>
+            <button id="clearTreasury" class="btn-action btn-danger">Clear All</button>
+          </div>
         </div>
       </div>
     </div>

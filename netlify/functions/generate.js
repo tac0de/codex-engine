@@ -16,8 +16,8 @@ const FALLBACKS = {
     "Has the power to heal any wound, but transfers the injury to your own body permanently.",
   ],
   ko: [
-    "현실 자체를 재작성할 수 있지만,每一次변경 때마다 자신의 기억 하나가 영구히 사라진다.",
-    "절대적인 시간 조종 능력을 지니지만, 시간을 멈출 때마다 10년씩 늙어간다.",
+    "현실 자체를 재작성할 수 있지만, 변경할 때마다 자신의 기억 하나가 영구히 사라진다.",
+    "절대적인 시간 조작 능력을 지니지만, 시간을 멈출 때마다 10년씩 늙어간다.",
     "부활의 힘을 지니지만, 자신의 손에 죽은 자만 되살릴 수 있다.",
     "모든 소원을 이룰 수 있지만, 그 대가는 항상 당신이 사랑하는 누군가가 치른다.",
     "완전한 무적의 육체를 지니지만, 어떤 물리적 감각도 영원히 느낄 수 없다.",
@@ -211,6 +211,7 @@ function generateSystemPrompt() {
     "You are a Divine Entity offering blessed gifts with inherent burdens.",
     "You represent the paradox of power - every ability carries its cost.",
     "You are the Voice of the Divine, bestowing cursed gifts upon mortals.",
+    "You are an ancient deity who grants power with terrible prices.",
   ];
 
   const intro = introPhrases[Math.floor(Math.random() * introPhrases.length)];
@@ -228,54 +229,159 @@ Rules:
 - Use "but" or similar to connect power and cost
 - Make the cost deeply personal, permanent, or devastating
 - Be creative and unexpected - avoid common tropes
-- The power must feel divine, the cost must feel absolute`;
+- The power must feel divine, the cost must feel absolute
+- Draw from cultural mythology, literature, and psychological themes`;
 }
 
-// Generate varied user prompt with context
-function generateUserPrompt(lang, recentAbilities = []) {
+// Cultural context and inspiration for each language
+function getCulturalContext(lang) {
+  const contexts = {
+    en: {
+      themes: ["Western mythology", "Biblical symbolism", "Gothic literature", "Psychological horror", "Greek tragedy"],
+      examples: [
+        '"Can rewrite reality itself, but each alteration permanently erases one of your own memories."',
+        '"Wields absolute time manipulation, but ages 10 years for every minute you freeze time."',
+        '"Has the power of resurrection, but can only bring back those who died by your own hand."',
+      ],
+    },
+    ko: {
+      themes: ["Korean folklore (도깨비, 신선)", "Confucian filial piety inversion", "Korean webtoon tropes", "Shamanistic curses", "K-drama melodrama"],
+      examples: [
+        '"불멸의 힘을 지니지만, 죽일 때마다 자신의 가장 소중한 기억 하나가 영원히 사라진다."',
+        '"모든 것을 치유할 수 있지만, 그 고통을 자신의 몸에 영원히 새긴다."',
+        '"미래를 볼 수 있지만, 볼 때마다 자신의 수명이 1년씩 줄어든다."',
+      ],
+    },
+    ja: {
+      themes: ["Japanese folklore (妖怪, 神々)", "Manga/anime powers", "Buddhist karma", "Shinto curses", "Light novel abilities"],
+      examples: [
+        '"絶対的な力を持つが、使うたびに大切な人の記憶が消えていく。"',
+        '"時間を止められるが、止めた時間の分だけ寿命が減る。"',
+        '"どんな傷も癒せるが、その傷は自分の体に移る。"',
+      ],
+    },
+    zh: {
+      themes: ["Chinese mythology (仙侠, 修真)", "Wuxia martial arts curses", "Taoist heavenly tribulation", "Karma and reincarnation", "Xianxia novel tropes"],
+      examples: [
+        '"能操控天地之力，但每使用一次，就会失去一段珍贵记忆。"',
+        '"拥有不死之身，但必须承受永恒的孤独与痛苦。"',
+        '"可预知未来，但每次预知都会消耗一年寿命。"',
+      ],
+    },
+  };
+
+  return contexts[lang] || contexts.en;
+}
+
+// Generate varied user prompt with context and preference learning
+function generateUserPrompt(lang, recentAbilities = [], preferencePatterns = {}) {
   const languageMap = {
-    ko: "Korean",
-    ja: "Japanese",
-    zh: "Chinese",
+    ko: "Korean (한국어)",
+    ja: "Japanese (日本語)",
+    zh: "Chinese (中文)",
     en: "English",
   };
   const outputLanguage = languageMap[lang] || "English";
 
+  // Get cultural context
+  const culture = getCulturalContext(lang);
+
   let prompt = `Write in ${outputLanguage}.\n\n`;
+
+  // Language-specific formatting instructions
+  if (lang === "ko") {
+    prompt += `**IMPORTANT**: Use proper Korean word spacing (띄어쓰기). Put spaces between meaningful phrases/clauses for readability.\n\n`;
+  } else if (lang === "ja") {
+    prompt += `**IMPORTANT**: Use natural Japanese phrasing. No spaces between words, but use punctuation appropriately.\n\n`;
+  } else if (lang === "zh") {
+    prompt += `**IMPORTANT**: Use natural Chinese phrasing without spaces between words.\n\n`;
+  }
+
+  prompt += `**Cultural Inspiration**: Draw from themes like ${culture.themes.join(", ")}.\n\n`;
+
+  // Adapt based on user's experience level and preferences
+  const totalGenerated = preferencePatterns.totalGenerated || 0;
+  const likedCount = preferencePatterns.likedCount || 0;
+  const likedAbilities = preferencePatterns.recentLiked || [];
+  const skippedAbilities = preferencePatterns.recentSkipped || [];
+  const combo = preferencePatterns.combo || 0;
+  const attitude = preferencePatterns.attitude || 50;
+
+  // Combo-based power scaling
+  if (combo >= 20) {
+    prompt += `**DIVINE FAVOR**: The user has achieved ${combo}x combo - this is a moment of divine resonance. Create something extraordinary, paradigm-shifting, or reality-defying.\n\n`;
+  } else if (combo >= 10) {
+    prompt += `**DIVINE FAVOR**: The user has reached ${combo}x combo - offer something particularly creative or memorable.\n\n`;
+  } else if (combo >= 5) {
+    prompt += `**DIVINE FAVOR**: The user is building momentum (${combo}x combo) - reward them with an interesting twist.\n\n`;
+  }
+
+  // Attitude-based tone adjustment
+  if (attitude >= 70) {
+    prompt += `**GOD'S MOOD**: Pleased - The Entity is benevolent. Create gifts with beauty, wonder, or profound meaning.\n\n`;
+  } else if (attitude <= 30) {
+    prompt += `**GOD'S MOOD**: Displeased - The Entity is testing. Create harsher, more demanding, or ominous abilities.\n\n`;
+  }
+
+  // Session-based adaptation
+  if (totalGenerated < 5) {
+    // Early session: Hook the user with impressive, accessible abilities
+    prompt += `**SESSION STAGE**: Early - Create accessible, awe-inspiring abilities that demonstrate the concept clearly.\n\n`;
+  } else if (totalGenerated < 15) {
+    // Mid session: More variety and creativity
+    prompt += `**SESSION STAGE**: Exploring - Push creativity with unusual combinations and deeper themes.\n\n`;
+  } else {
+    // Late session: More experimental and philosophical
+    prompt += `**SESSION STAGE**: Deep Dive - Create abstract, philosophical, or boundary-pushing abilities.\n\n`;
+  }
+
+  // Learn from what user likes
+  if (likedAbilities.length > 0) {
+    prompt += `**USER PREFERENCES**: These abilities resonated with the user - consider similar themes, cost types, or tone:\n`;
+    likedAbilities.forEach((ability, i) => {
+      prompt += `${i + 1}. "${ability}"\n`;
+    });
+    prompt += `\n`;
+  }
+
+  // Avoid what user doesn't like
+  if (skippedAbilities.length > 0) {
+    prompt += `**AVOID PATTERNS**: The user skipped these - avoid similar themes, structures, or cost types:\n`;
+    skippedAbilities.forEach((ability, i) => {
+      prompt += `${i + 1}. "${ability}"\n`;
+    });
+    prompt += `\n`;
+  }
 
   // Add variety based on attempt
   const varietyInstructions = [
-    "Focus on TIME or FATE.",
-    "Focus on BODY or MIND.",
-    "Focus on REALITY or EXISTENCE.",
-    "Focus on OTHERS or RELATIONSHIPS.",
-    "Focus on KNOWLEDGE or PERCEPTION.",
-    "Focus on LIFE or DEATH.",
+    { focus: "TIME/FATE", cost: "temporal consequences, aging, lost moments" },
+    { focus: "BODY/MIND", cost: "physical transformation, loss of sensation, identity erosion" },
+    { focus: "RELATIONSHIPS", cost: "harm to loved ones, isolation, emotional burden" },
+    { focus: "KNOWLEDGE/PERCEPTION", cost: "ironic blindness, knowing too much, sensory overload" },
+    { focus: "LIFE/DEATH", cost: "mortality exchange, undeath, permanent consequences" },
+    { focus: "IDENTITY/MEMORY", cost: "forgetting oneself, erasure, becoming someone else" },
   ];
-  const focus = varietyInstructions[Math.floor(Math.random() * varietyInstructions.length)];
-  prompt += `${focus}\n\n`;
 
-  // Example format
-  const examples = [
-    '"Can rewrite reality itself, but each alteration permanently erases one of your own memories."',
-    '"Wields absolute time manipulation, but ages 10 years for every minute you freeze time."',
-    '"Possesses the power of resurrection, but can only bring back those who died by your own hand."',
-    '"Can grant any wish, but the cost is always paid by someone you love."',
-    '"Has complete invulnerability, but loses the ability to feel any physical sensation forever."',
-  ];
-  const example = examples[Math.floor(Math.random() * examples.length)];
-  prompt += `Example format:\n${example}\n\n`;
+  // Choose variety that avoids recent patterns
+  const varietyIndex = Math.floor(Math.random() * varietyInstructions.length);
+  const selectedVariety = varietyInstructions[varietyIndex];
+  prompt += `**Theme**: Focus on ${selectedVariety.focus} manipulation with ${selectedVariety.cost}.\n\n`;
+
+  // Example format (culturally appropriate)
+  const example = culture.examples[Math.floor(Math.random() * culture.examples.length)];
+  prompt += `**Example format**:\n${example}\n\n`;
 
   // Avoidance context if recent abilities provided
   if (recentAbilities && recentAbilities.length > 0) {
-    prompt += `AVOID these recent gifts (do NOT repeat):\n`;
+    prompt += `**CRITICAL**: AVOID these recent gifts - do NOT repeat:\n`;
     recentAbilities.slice(0, 5).forEach((ability, i) => {
       prompt += `${i + 1}. "${ability}"\n`;
     });
     prompt += `\n`;
   }
 
-  prompt += `Now generate a NEW, UNIQUE ability. Output ONLY valid JSON: {"result":"..."}`;
+  prompt += `Now generate a NEW, UNIQUE ability that fits the cultural context and user preferences. Make it poetic, memorable, and deeply meaningful. Output ONLY valid JSON: {"result":"..."}`;
 
   return prompt;
 }
@@ -284,6 +390,7 @@ exports.handler = async (event) => {
   const body = safeParseBody(event.body);
   const lang = body?.lang || "en";
   const recentAbilities = body?.recentAbilities || [];
+  const preferencePatterns = body?.preferencePatterns || {};
   const debug =
     body?.debug === true ||
     event?.queryStringParameters?.debug === "1" ||
@@ -301,6 +408,11 @@ exports.handler = async (event) => {
     path: event?.path,
     debug,
     recentCount: recentAbilities.length,
+    preferencePatterns: {
+      likedCount: preferencePatterns.likedCount || 0,
+      skippedCount: preferencePatterns.skippedCount || 0,
+      totalGenerated: preferencePatterns.totalGenerated || 0,
+    },
   });
 
   try {
@@ -319,7 +431,7 @@ exports.handler = async (event) => {
     const model = process.env.OPENAI_MODEL || "gpt-5-nano";
 
     const SYSTEM_PROMPT = generateSystemPrompt();
-    const USER_PROMPT = generateUserPrompt(lang, recentAbilities);
+    const USER_PROMPT = generateUserPrompt(lang, recentAbilities, preferencePatterns);
 
     const responseFormat = {
       type: "json_schema",
