@@ -618,6 +618,45 @@ function applyLang(lang) {
   if (closeTreasury) {
     closeTreasury.setAttribute("aria-label", t.close);
   }
+  const aboutModalTitle = document.getElementById("aboutModalTitle");
+  const aboutWhatIs = document.getElementById("aboutWhatIs");
+  const aboutWhatIsP1 = document.getElementById("aboutWhatIsP1");
+  const aboutWhatIsP2 = document.getElementById("aboutWhatIsP2");
+  const aboutWhatNot = document.getElementById("aboutWhatNot");
+  const aboutNotProductivity = document.getElementById("aboutNotProductivity");
+  const aboutNotChatbot = document.getElementById("aboutNotChatbot");
+  const aboutNotUtility = document.getElementById("aboutNotUtility");
+  const aboutDesign = document.getElementById("aboutDesign");
+  const aboutDesignIntro = document.getElementById("aboutDesignIntro");
+  const aboutStateful = document.getElementById("aboutStateful");
+  const aboutLongTerm = document.getElementById("aboutLongTerm");
+  const aboutBounded = document.getElementById("aboutBounded");
+  const aboutBehavior = document.getElementById("aboutBehavior");
+  const aboutHowTo = document.getElementById("aboutHowTo");
+  const aboutHowToText = document.getElementById("aboutHowToText");
+  const aboutTechnical = document.getElementById("aboutTechnical");
+  const aboutTechnicalText = document.getElementById("aboutTechnicalText");
+  const aboutGithub = document.getElementById("aboutGithub");
+
+  if (aboutModalTitle) aboutModalTitle.textContent = t.aboutTitle;
+  if (aboutWhatIs) aboutWhatIs.textContent = t.aboutWhatIs;
+  if (aboutWhatIsP1) aboutWhatIsP1.innerHTML = t.aboutWhatIsP1;
+  if (aboutWhatIsP2) aboutWhatIsP2.innerHTML = t.aboutWhatIsP2;
+  if (aboutWhatNot) aboutWhatNot.textContent = t.aboutWhatNot;
+  if (aboutNotProductivity) aboutNotProductivity.textContent = t.aboutNotProductivity;
+  if (aboutNotChatbot) aboutNotChatbot.textContent = t.aboutNotChatbot;
+  if (aboutNotUtility) aboutNotUtility.textContent = t.aboutNotUtility;
+  if (aboutDesign) aboutDesign.textContent = t.aboutDesign;
+  if (aboutDesignIntro) aboutDesignIntro.textContent = t.aboutDesignIntro;
+  if (aboutStateful) aboutStateful.innerHTML = t.aboutStateful;
+  if (aboutLongTerm) aboutLongTerm.innerHTML = t.aboutLongTerm;
+  if (aboutBounded) aboutBounded.innerHTML = t.aboutBounded;
+  if (aboutBehavior) aboutBehavior.innerHTML = t.aboutBehavior;
+  if (aboutHowTo) aboutHowTo.textContent = t.aboutHowTo;
+  if (aboutHowToText) aboutHowToText.textContent = t.aboutHowToText;
+  if (aboutTechnical) aboutTechnical.textContent = t.aboutTechnical;
+  if (aboutTechnicalText) aboutTechnicalText.textContent = t.aboutTechnicalText;
+  if (aboutGithub) aboutGithub.textContent = t.aboutGithub;
   if (favorLabel) {
     favorLabel.textContent = t.divineFavor;
   }
@@ -918,6 +957,8 @@ document.addEventListener("keydown", (e) => {
       achievementsModal.classList.remove("show");
     } else if (treasuryModal && treasuryModal.classList.contains("show")) {
       treasuryModal.classList.remove("show");
+    } else if (aboutModal && aboutModal.classList.contains("show")) {
+      aboutModal.classList.remove("show");
     }
   }
 
@@ -1127,6 +1168,34 @@ if (clearTreasuryBtn) {
       localStorage.setItem(TREASURY_KEY, JSON.stringify([]));
       populateTreasury();
       showToast(t.treasuryCleared, 2000);
+    }
+  });
+}
+
+// =====================================================
+// ABOUT MODAL
+// =====================================================
+const aboutModal = document.getElementById("aboutModal");
+const aboutLink = document.getElementById("aboutLink");
+const closeAbout = document.getElementById("closeAbout");
+
+if (aboutLink && aboutModal) {
+  aboutLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    aboutModal.classList.add("show");
+  });
+}
+
+if (closeAbout) {
+  closeAbout.addEventListener("click", () => {
+    aboutModal.classList.remove("show");
+  });
+}
+
+if (aboutModal) {
+  aboutModal.addEventListener("click", (e) => {
+    if (e.target === aboutModal) {
+      aboutModal.classList.remove("show");
     }
   });
 }

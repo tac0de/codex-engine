@@ -2,14 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>The Divine Paradox | Receive Your Burdened Gift</title>
+    <title>The Divine Paradox | A Stateful Behavior System</title>
     <meta
       name="description"
-      content="The Divine Entity offers you power - but every blessing carries its burden. Receive your unique ability from the shifting faces of God."
+      content="A stateful behavior system observing long-term interaction with paradox-generating entities. This is an experimental system designed to examine behavior-level constraints and internal state transitions—not a productivity tool or chatbot demo."
     />
     <meta
       name="keywords"
-      content="ability generator, divine power, paradox abilities, cursed gifts, unique powers, creative writing, RPG abilities, supernatural abilities"
+      content="stateful behavior, behavior-driven system, experimental psychology, paradox generation, long-term interaction, internal state transitions"
     />
     <meta name="author" content="The Divine Paradox" />
     <meta name="robots" content="index, follow" />
@@ -19,10 +19,10 @@
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://thedivineparadox.com/" />
-    <meta property="og:title" content="The Divine Paradox | Receive Your Burdened Gift" />
+    <meta property="og:title" content="The Divine Paradox | A Stateful Behavior System" />
     <meta
       property="og:description"
-      content="The Divine Entity offers you power - but every blessing carries its burden."
+      content="A stateful behavior system observing long-term interaction with paradox-generating entities. This is an experimental system designed to examine behavior-level constraints—not a productivity tool or chatbot demo."
     />
     <meta property="og:image" content="https://thedivineparadox.com/assets/og.png" />
     <meta property="og:image:url" content="https://thedivineparadox.com/assets/og.png" />
@@ -37,10 +37,10 @@
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:url" content="https://thedivineparadox.com/" />
-    <meta name="twitter:title" content="The Divine Paradox | Receive Your Burdened Gift" />
+    <meta name="twitter:title" content="The Divine Paradox | A Stateful Behavior System" />
     <meta
       name="twitter:description"
-      content="The Divine Entity offers you power - but every blessing carries its burden."
+      content="A stateful behavior system observing long-term interaction with paradox-generating entities. This is an experimental system designed to examine behavior-level constraints—not a productivity tool or chatbot demo."
     />
     <meta name="twitter:image" content="https://thedivineparadox.com/assets/og.png" />
     <meta name="twitter:image:alt" content="The Divine Paradox" />
@@ -78,9 +78,9 @@
         "@context": "https://schema.org",
         "@type": "WebApplication",
         "name": "The Divine Paradox",
-        "description": "The Divine Entity offers you power - but every blessing carries its burden. Receive your unique ability from the shifting faces of God.",
+        "description": "A stateful behavior system observing long-term interaction with paradox-generating entities. This is an experimental system designed to examine behavior-level constraints—not a productivity tool or chatbot demo.",
         "url": "https://thedivineparadox.com",
-        "applicationCategory": "UtilityApplication",
+        "applicationCategory": "EducationalApplication",
         "operatingSystem": "Any",
         "offers": {
           "@type": "Offer",
@@ -128,9 +128,10 @@
     <main class="main">
       <!-- Title and Description -->
       <header class="header">
-        <h1 id="title" class="title">Receive Your Gift</h1>
+        <h1 id="title" class="title">Stateful Paradox System</h1>
         <p id="desc" class="description">
-          The Divine Entity offers you power, but every blessing carries its burden.
+          An experimental system observing long-term interaction with paradox-generating entities.
+          <br><small style="opacity: 0.7">Short interactions will not reveal its design.</small>
         </p>
       </header>
 
@@ -216,13 +217,7 @@
       <footer class="footer">
         <div class="footer-links">
           <a href="#" id="privacyLink">Privacy</a>
-          <a
-            id="aboutLink"
-            href="https://github.com/tac0de/ability-paradox-generator"
-            target="_blank"
-            rel="noopener"
-            >About</a
-          >
+          <a href="#" id="aboutLink">About</a>
           <a id="contactLink" href="mailto:wonyoungchoiseoul@gmail.com">Contact</a>
         </div>
         <p id="footerNote" class="footer-note">© 2025 The Divine Paradox</p>
@@ -319,6 +314,48 @@
             <button id="exportTreasury" class="btn-action">Export Collection</button>
             <button id="clearTreasury" class="btn-action btn-danger">Clear All</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- About Modal -->
+    <div id="aboutModal" class="modal">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h2 id="aboutModalTitle">About This System</h2>
+          <button class="modal-close" id="closeAbout" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <h3 id="aboutWhatIs">What This Is</h3>
+          <p id="aboutWhatIsP1"></p>
+          <p id="aboutWhatIsP2"></p>
+
+          <h3 id="aboutWhatNot">What This Is NOT</h3>
+          <ul>
+            <li>❌ <span id="aboutNotProductivity"></span></li>
+            <li>❌ <span id="aboutNotChatbot"></span></li>
+            <li>❌ <span id="aboutNotUtility"></span></li>
+          </ul>
+
+          <h3 id="aboutDesign">System Design</h3>
+          <p id="aboutDesignIntro"></p>
+          <ul>
+            <li id="aboutStateful"></li>
+            <li id="aboutLongTerm"></li>
+            <li id="aboutBounded"></li>
+            <li id="aboutBehavior"></li>
+          </ul>
+
+          <h3 id="aboutHowTo">How to Observe</h3>
+          <p id="aboutHowToText" style="font-style: italic; opacity: 0.8;"></p>
+
+          <h3 id="aboutTechnical">Technical Details</h3>
+          <p>
+            <span id="aboutTechnicalText"></span>
+            <a href="https://github.com/tac0de/ability-paradox-generator" target="_blank" rel="noopener">
+              <span id="aboutGithub"></span>
+            </a>.
+          </p>
         </div>
       </div>
     </div>

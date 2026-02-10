@@ -357,13 +357,47 @@ function needsKoreanSpacingFix(text) {
   return spaceCount < 2;
 }
 
+function needsFormattingFix(text, lang) {
+  if (!text || typeof text !== "string") return false;
+
+  if (lang === "ko") {
+    return needsKoreanSpacingFix(text);
+  }
+
+  if (lang === "en") {
+    // Check for missing spaces after punctuation
+    const hasPunctuationIssues = /[a-z][.!?][A-Z]/.test(text);
+    // Check for multiple consecutive spaces
+    const hasMultipleSpaces = /\s{3,}/.test(text);
+    return hasPunctuationIssues || hasMultipleSpaces;
+  }
+
+  if (lang === "ja") {
+    // Japanese shouldn't have spaces between characters, only after punctuation
+    const charCount = text.length;
+    const spaceCount = (text.match(/\s/g) || []).length;
+    // Allow some spaces but check for excessive spacing
+    return charCount > 10 && spaceCount > charCount * 0.2;
+  }
+
+  if (lang === "zh") {
+    // Chinese shouldn't have spaces between characters
+    const charCount = text.length;
+    const spaceCount = (text.match(/\s/g) || []).length;
+    // Chinese text should have minimal or no spaces
+    return charCount > 10 && spaceCount > charCount * 0.1;
+  }
+
+  return false;
+}
+
 // Generate a more varied system prompt
 function generateSystemPrompt() {
   const introPhrases = [
-    "You are a Divine Entity offering blessed gifts with inherent burdens.",
-    "You represent the paradox of power - every ability carries its cost.",
-    "You are the Voice of the Divine, bestowing cursed gifts upon mortals.",
-    "You are an ancient deity who grants power with terrible prices.",
+    "You are a paradox-generating system that produces stateful behavior patterns.",
+    "You represent behavioral paradoxes - every action produces observable consequences.",
+    "You are an experimental system documenting ability-constraint relationships.",
+    "You generate paradox patterns for long-term interaction observation.",
   ];
 
   const intro = introPhrases[Math.floor(Math.random() * introPhrases.length)];
@@ -371,18 +405,19 @@ function generateSystemPrompt() {
   return `${intro}
 
 Generate ONE single sentence describing:
-1. A powerful, supernatural ability (god-like, reality-altering, or beyond human comprehension)
-2. Its terrible, unavoidable cost (a burden, curse, or consequence)
+1. A powerful, supernatural ability (reality-altering, transcending human comprehension)
+2. Its inherent, unavoidable consequence (constraint, burden, or systemic cost)
 
 Rules:
 - Maximum 25 words total
 - No names, no stories, no explanations
 - Start immediately with the ability
-- Use "but" or similar to connect power and cost
-- Make the cost deeply personal, permanent, or devastating
+- Use "but" or similar to connect power and consequence
+- Make the consequence deeply personal, permanent, or structurally significant
 - Be creative and unexpected - avoid common tropes
-- The power must feel divine, the cost must feel absolute
-- Draw from cultural mythology, literature, and psychological themes`;
+- The power must feel transcendent, the consequence must feel absolute
+- Draw from cultural mythology, literature, and psychological themes
+- Focus on behavior-level constraints and internal state transitions`;
 }
 
 // Cultural context and inspiration for each language
@@ -456,9 +491,11 @@ function generateUserPrompt(
   if (lang === "ko") {
     prompt += `**IMPORTANT**: Use proper Korean word spacing (띄어쓰기). Put spaces between meaningful phrases/clauses for readability. Never output Korean text as one long unspaced block.\n\n`;
   } else if (lang === "ja") {
-    prompt += `**IMPORTANT**: Use natural Japanese phrasing. No spaces between words, but use punctuation appropriately.\n\n`;
+    prompt += `**IMPORTANT**: Use natural Japanese phrasing. No spaces between words. Use appropriate punctuation (。、) for clause separation. Ensure proper reading flow.\n\n`;
   } else if (lang === "zh") {
-    prompt += `**IMPORTANT**: Use natural Chinese phrasing without spaces between words.\n\n`;
+    prompt += `**IMPORTANT**: Use natural Chinese phrasing without spaces between words. Use appropriate punctuation (。，、) for clear clause separation. Ensure proper reading flow.\n\n`;
+  } else {
+    prompt += `**IMPORTANT**: Use proper English word spacing and punctuation. Ensure clear clause separation with commas. Avoid run-on sentences.\n\n`;
   }
 
   prompt += `**Cultural Inspiration**: Draw from themes like ${culture.themes.join(", ")}.\n\n`;
@@ -471,20 +508,20 @@ function generateUserPrompt(
   const combo = preferencePatterns.combo || 0;
   const attitude = preferencePatterns.attitude || 50;
 
-  // Combo-based power scaling
+  // Combo-based interaction depth scaling
   if (combo >= 20) {
-    prompt += `**DIVINE FAVOR**: The user has achieved ${combo}x combo - this is a moment of divine resonance. Create something extraordinary, paradigm-shifting, or reality-defying.\n\n`;
+    prompt += `**INTERACTION DEPTH**: The user has achieved ${combo}x sustained interaction - this represents deep engagement with the system. Generate something extraordinary, paradigm-shifting, or boundary-pushing.\n\n`;
   } else if (combo >= 10) {
-    prompt += `**DIVINE FAVOR**: The user has reached ${combo}x combo - offer something particularly creative or memorable.\n\n`;
+    prompt += `**INTERACTION DEPTH**: The user has reached ${combo}x combo - offer something particularly creative or memorable.\n\n`;
   } else if (combo >= 5) {
-    prompt += `**DIVINE FAVOR**: The user is building momentum (${combo}x combo) - reward them with an interesting twist.\n\n`;
+    prompt += `**INTERACTION DEPTH**: The user is building momentum (${combo}x combo) - respond with an interesting variation.\n\n`;
   }
 
-  // Attitude-based tone adjustment
+  // Attitude-based system behavior adjustment
   if (attitude >= 70) {
-    prompt += `**GOD'S MOOD**: Pleased - The Entity is benevolent. Create gifts with beauty, wonder, or profound meaning.\n\n`;
+    prompt += `**SYSTEM STATE**: Positive - The system is in a responsive state. Generate patterns with beauty, wonder, or profound meaning.\n\n`;
   } else if (attitude <= 30) {
-    prompt += `**GOD'S MOOD**: Displeased - The Entity is testing. Create harsher, more demanding, or ominous abilities.\n\n`;
+    prompt += `**SYSTEM STATE**: Negative - The system is in a constrained state. Generate harsher, more demanding, or ominous patterns.\n\n`;
   }
 
   // Session-based adaptation
@@ -694,15 +731,27 @@ exports.handler = async (event) => {
       return res.json();
     };
 
-    const fixKoreanSpacingIfNeeded = async (text) => {
-      if (lang !== "ko" || !needsKoreanSpacingFix(text)) return text;
+    const fixFormattingIfNeeded = async (text, targetLang) => {
+      if (!needsFormattingFix(text, targetLang)) return text;
 
-      const spacingSystem =
-        "You are a Korean proofreader. Fix Korean spacing only. Keep meaning and tone exactly. Output JSON only.";
-      const spacingUser =
-        `Fix spacing for this sentence while preserving wording and punctuation as much as possible:\n` +
-        `${text}\n\n` +
-        `Return JSON: {"result":"..."}`;
+      let systemPrompt = "";
+      let userPrompt = "";
+
+      if (targetLang === "ko") {
+        systemPrompt = "You are a Korean proofreader. Fix Korean spacing only. Keep meaning and tone exactly. Output JSON only.";
+        userPrompt = `Fix spacing for this sentence while preserving wording and punctuation as much as possible:\n${text}\n\nReturn JSON: {"result":"..."}`;
+      } else if (targetLang === "en") {
+        systemPrompt = "You are an English proofreader. Fix punctuation and spacing issues only. Keep meaning and tone exactly. Output JSON only.";
+        userPrompt = `Fix punctuation and spacing for this sentence while preserving wording:\n${text}\n\nReturn JSON: {"result":"..."}`;
+      } else if (targetLang === "ja") {
+        systemPrompt = "You are a Japanese proofreader. Fix punctuation only. Remove unnecessary spaces. Keep meaning and tone exactly. Output JSON only.";
+        userPrompt = `Fix punctuation for this sentence while removing unnecessary spaces:\n${text}\n\nReturn JSON: {"result":"..."}`;
+      } else if (targetLang === "zh") {
+        systemPrompt = "You are a Chinese proofreader. Fix punctuation only. Remove unnecessary spaces. Keep meaning and tone exactly. Output JSON only.";
+        userPrompt = `Fix punctuation for this sentence while removing unnecessary spaces:\n${text}\n\nReturn JSON: {"result":"..."}`;
+      } else {
+        return text;
+      }
 
       const res = await fetch("https://api.openai.com/v1/responses", {
         method: "POST",
@@ -720,11 +769,11 @@ exports.handler = async (event) => {
           input: [
             {
               role: "system",
-              content: [{ type: "input_text", text: spacingSystem }],
+              content: [{ type: "input_text", text: systemPrompt }],
             },
             {
               role: "user",
-              content: [{ type: "input_text", text: spacingUser }],
+              content: [{ type: "input_text", text: userPrompt }],
             },
           ],
           max_output_tokens: 200,
@@ -816,9 +865,9 @@ exports.handler = async (event) => {
     }
 
     try {
-      result = await fixKoreanSpacingIfNeeded(result);
-    } catch (spacingErr) {
-      console.warn("Korean spacing fix skipped:", spacingErr?.message || spacingErr);
+      result = await fixFormattingIfNeeded(result, lang);
+    } catch (formattingErr) {
+      console.warn("Formatting fix skipped:", formattingErr?.message || formattingErr);
     }
 
     setCachedResultForKey(cacheKey, result);
