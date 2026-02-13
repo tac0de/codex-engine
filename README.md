@@ -1,21 +1,54 @@
-# codex-engine migration scaffold
+# The Divine Paradox (codex-engine)
 
-This folder contains migration scaffolding to move `ability-*` local-only logic into an authenticated database-backed architecture.
+Live: `https://thedivineparadox.com`
 
-## Included
-- `db/schema.sql`: base relational schema for auth-linked progression
-- `src/storage/abilityRepository.ts`: repository interface + local adapter
-- `src/storage/dbRepository.example.ts`: server-side DB adapter example
-- `src/migration/localToDbMigration.ts`: localStorage export shape + migration function skeleton
-- `netlify/functions/_lib/firebaseAuth.ts`: Firebase ID token verification helper (no extra deps)
-- `netlify/functions/progress.ts`: authenticated progress endpoint scaffold
+This repo is a small experimental product:
+- a stateful, long-term interaction system
+- static frontend + serverless backend
+- local-first progression (achievements/treasury) with an authenticated expansion path
 
-## Goal
-Preserve gameplay/progression logic while expanding from localStorage-only to:
-- login-aware user scope
-- server-side persistence
-- auditable event history
+## What It Is
+- Generate one short "ability + consequence" sentence per interaction.
+- Track interaction state across time (combo, attitude, daily streak).
+- Let users archive observations in a treasury and unlock milestones.
 
-## Firebase auth runtime env
+## Architecture (Practical)
+- Frontend: static `index.html` + `main.js` + `style.css`
+  - localStorage-backed systems: achievements, treasury, daily streak, preferences
+- Backend: Netlify Functions
+  - `/.netlify/functions/generate` (calls OpenAI via env key)
+  - `/.netlify/functions/progress` (Firebase ID token verified; DB wiring scaffold)
+
+## Local Development
+1. Install deps:
+
+```bash
+npm install
+```
+
+2. Start Netlify dev (recommended if you want functions locally):
+
+```bash
+npm install -g netlify-cli
+netlify dev
+```
+
+3. Or open the static page:
+- open `index.html` directly (generation requires the function endpoint)
+
+## Required Runtime Env
+### Generate function (OpenAI)
+- `OPENAI_API_KEY` (or `OPENAI_API_TOKEN`)
+- optional `OPENAI_MODEL` (default: `gpt-5-nano`)
+
+### Progress function (Firebase Auth)
 - `FIREBASE_PROJECT_ID` (or `GCP_PROJECT_ID`)
-- Request header: `Authorization: Bearer <firebase_id_token>`
+- request header: `Authorization: Bearer <firebase_id_token>`
+
+## Repo Safety Notes
+- Do not commit `.env` files or any credentials.
+- Keep secrets in Netlify environment variables only.
+
+## Docs
+- Public release notes: `docs/PUBLIC_RELEASE_GUIDE.md`
+- Inheritance note: `docs/ABILITY_INHERITANCE.md`

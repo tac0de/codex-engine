@@ -80,6 +80,63 @@ let lastGenerateAtMs = 0;
 
 const sleepMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+function escapeHtml(text) {
+  return String(text || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function normalizeAbilityKey(text) {
+  return String(text || "")
+    .normalize("NFKC")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function getProgressLabel(lang) {
+  const labels = {
+    en: "Progress",
+    ko: "진행률",
+    ja: "進捗",
+    zh: "进度",
+  };
+  return labels[lang] || labels.en;
+}
+
+function getTreasurySummaryLabel(lang) {
+  const labels = {
+    en: "Collection Summary",
+    ko: "보관함 요약",
+    ja: "コレクション概要",
+    zh: "收藏概要",
+  };
+  return labels[lang] || labels.en;
+}
+
+function getTotalLabel(lang) {
+  const labels = {
+    en: "Total",
+    ko: "전체",
+    ja: "合計",
+    zh: "总计",
+  };
+  return labels[lang] || labels.en;
+}
+
+function getLastSavedLabel(lang) {
+  const labels = {
+    en: "Last saved",
+    ko: "최근 저장",
+    ja: "最終保存",
+    zh: "最近保存",
+  };
+  return labels[lang] || labels.en;
+}
+
 // =====================================================
 // COMBO SYSTEM
 // =====================================================
@@ -240,7 +297,16 @@ function checkAchievements(lang = "en") {
 function getTreasury() {
   try {
     const stored = localStorage.getItem(TREASURY_KEY);
-    return stored ? JSON.parse(stored) : [];
+    const parsed = stored ? JSON.parse(stored) : [];
+    return Array.isArray(parsed)
+      ? parsed.map((item) => {
+          const ability = String(item?.ability || "").trim();
+          const rarity = String(item?.rarity || "common").trim() || "common";
+          const timestamp = Number(item?.timestamp) || Date.now();
+          const abilityKey = item?.abilityKey ? String(item.abilityKey) : normalizeAbilityKey(ability);
+          return { ability, rarity, timestamp, abilityKey };
+        })
+      : [];
   } catch {
     return [];
   }
@@ -249,14 +315,17 @@ function getTreasury() {
 function addToTreasury(ability, rarity) {
   if (!ability || !ability.trim()) return false;
 
+  const abilityTrimmed = ability.trim();
+  const abilityKey = normalizeAbilityKey(abilityTrimmed);
   const treasury = getTreasury();
   // Avoid duplicates
-  if (treasury.find(item => item.ability === ability)) return false;
+  if (treasury.find((item) => (item.abilityKey || normalizeAbilityKey(item.ability)) === abilityKey)) return false;
 
   treasury.unshift({
-    ability,
+    ability: abilityTrimmed,
     rarity,
     timestamp: Date.now(),
+    abilityKey,
   });
 
   // Keep bounded number of items
@@ -273,7 +342,11 @@ function addToTreasury(ability, rarity) {
 
 function removeFromTreasury(ability) {
   const treasury = getTreasury();
-  const filtered = treasury.filter(item => item.ability !== ability);
+  const targetKey = normalizeAbilityKey(ability);
+  const filtered = treasury.filter((item) => {
+    const currentKey = item.abilityKey || normalizeAbilityKey(item.ability);
+    return currentKey !== targetKey;
+  });
   try {
     localStorage.setItem(TREASURY_KEY, JSON.stringify(filtered));
     return true;
@@ -1046,24 +1119,71 @@ function populateAchievements() {
   if (!achievementsList) return;
 
   const achievements = checkAchievements(lang);
-  const unlocked = getAchievements();
 
   achievementsList.innerHTML = achievements.map(ach => {
     const isUnlocked = ach.unlocked;
     const icon = isUnlocked ? "🏆" : "🔒";
     const name = ach.name[lang] || ach.name.en;
     const desc = ach.desc[lang] || ach.desc.en;
+    const progress = getAchievementProgress(ach, isUnlocked);
+    const progressLabel = getProgressLabel(lang);
 
     return `
       <div class="achievement-item ${isUnlocked ? 'unlocked' : ''}">
         <div class="achievement-icon">${icon}</div>
         <div class="achievement-info">
-          <div class="achievement-name">${name}</div>
-          <div class="achievement-desc">${desc}</div>
+          <div class="achievement-name">${escapeHtml(name)}</div>
+          <div class="achievement-desc">${escapeHtml(desc)}</div>
+          <div class="achievement-progress-row">
+            <span class="achievement-progress-label">${progressLabel}</span>
+            <span class="achievement-progress-value">${progress.current}/${progress.target}</span>
+          </div>
+          <div class="achievement-progress-bar">
+            <span style="width:${progress.percent}%"></span>
+          </div>
         </div>
       </div>
     `;
   }).join("");
+}
+
+function getAchievementProgress(def, isUnlocked = false) {
+  const req = (def && def.requirement) ? def.requirement : {};
+  const target = Math.max(1, Number(req.value || 1));
+  if (isUnlocked) {
+    return { current: target, target, percent: 100 };
+  }
+
+  let current = 0;
+  switch (req.type) {
+    case "generated":
+      current = generatedTotal;
+      break;
+    case "combo":
+      current = getCombo();
+      break;
+    case "treasury":
+      current = getTreasury().length;
+      break;
+    case "skipped":
+      current = getSkippedAbilities().length;
+      break;
+    case "dailyStreak":
+      current = getDailyStreak();
+      break;
+    case "legendary":
+      current = currentRarity === "legendary" ? 1 : 0;
+      break;
+    case "firstSave":
+      current = getTreasury().length >= 1 ? 1 : 0;
+      break;
+    default:
+      current = 0;
+      break;
+  }
+  const clamped = Math.min(target, Math.max(0, Number(current) || 0));
+  const percent = Math.round((clamped / target) * 100);
+  return { current: clamped, target, percent };
 }
 
 // =====================================================
@@ -1110,13 +1230,40 @@ function populateTreasury() {
     return;
   }
 
-  treasuryList.innerHTML = treasury.map((item, index) => {
+  const rarityCounts = treasury.reduce((acc, item) => {
+    const rarity = String(item.rarity || "common");
+    acc[rarity] = (acc[rarity] || 0) + 1;
+    return acc;
+  }, {});
+  const summaryTitle = getTreasurySummaryLabel(lang);
+  const totalLabel = getTotalLabel(lang);
+  const lastSavedLabel = getLastSavedLabel(lang);
+  const latest = treasury[0];
+  const latestDate = latest ? new Date(latest.timestamp).toLocaleDateString() : "-";
+  const raritySummary = ["common", "rare", "epic", "legendary"]
+    .map((rarityName) => `${getRarityLabel(rarityName, lang)} ${rarityCounts[rarityName] || 0}`)
+    .join(" · ");
+
+  treasuryList.innerHTML = `
+    <div class="treasury-summary-card">
+      <div class="treasury-summary-title">${summaryTitle}</div>
+      <div class="treasury-summary-line">
+        <span>${totalLabel}</span>
+        <strong>${treasury.length}</strong>
+      </div>
+      <div class="treasury-summary-line">
+        <span>${lastSavedLabel}</span>
+        <strong>${latestDate}</strong>
+      </div>
+      <div class="treasury-summary-rarity">${escapeHtml(raritySummary)}</div>
+    </div>
+  ` + treasury.map((item, index) => {
     const date = new Date(item.timestamp).toLocaleDateString();
     const rarityColor = getRarityColor(item.rarity);
 
     return `
       <div class="treasury-item rarity-${item.rarity}">
-        <div class="treasury-ability">${item.ability}</div>
+        <div class="treasury-ability">${escapeHtml(item.ability)}</div>
         <div class="treasury-meta">
           <span class="treasury-rarity" style="color: ${rarityColor}">${getRarityLabel(item.rarity, lang)}</span>
           <span>${date}</span>
@@ -1176,7 +1323,6 @@ if (clearTreasuryBtn) {
 // ABOUT MODAL
 // =====================================================
 const aboutModal = document.getElementById("aboutModal");
-const aboutLink = document.getElementById("aboutLink");
 const closeAbout = document.getElementById("closeAbout");
 
 if (aboutLink && aboutModal) {

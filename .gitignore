@@ -2,3 +2,10 @@ node_modules
 package-lock.json
 example.ts
 AGENTS.md
+# Local Netlify folder
+.netlify
+.env
+.env.local
+.env.*
+!.env.example
+*.log
